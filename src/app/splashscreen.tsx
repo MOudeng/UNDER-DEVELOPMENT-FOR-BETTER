@@ -1,9 +1,14 @@
+// @ts-ignore React types are resolved from the project's installed dependencies.
 import React, { useEffect, useRef } from "react";
+// @ts-ignore React Native types are resolved from the project's installed dependencies.
 import { Animated, StyleSheet, View } from "react-native";
 
 import { Image } from "expo-image";
-import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+// @ts-ignore The Expo bundler resolves the PNG asset at runtime.
+const logo = require("../assets/logo.png");
+// Resolve the router at runtime so TypeScript does not require expo-router's declarations here.
+// @ts-ignore expo-router is resolved by the Expo runtime.
+const { router } = require("expo-router");
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AuthenticationService } from "../services";
 
@@ -36,31 +41,38 @@ export default function SplashScreen() {
     return () => clearTimeout(timer);
   }, [fadeAnim, scaleAnim]);
 
-  return (
-    <LinearGradient colors={["#dc2626", "#f55023"]} style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.content}>
-          <Animated.View
-            style={{
+  return React.createElement(
+    View,
+    { style: styles.container },
+    React.createElement(
+      SafeAreaView,
+      { style: styles.safeArea },
+      React.createElement(
+        View,
+        { style: styles.content },
+        React.createElement(
+          Animated.View,
+          {
+            style: {
               opacity: fadeAnim,
               transform: [{ scale: scaleAnim }],
-            }}
-          >
-            <Image
-              style={styles.logo}
-              contentFit="contain"
-              source={require("../assets/logo.png")}
-            />
-          </Animated.View>
-        </View>
-      </SafeAreaView>
-    </LinearGradient>
+            },
+          },
+          React.createElement(Image, {
+            style: styles.logo,
+            contentFit: "contain",
+            source: logo,
+          }),
+        ),
+      ),
+    ),
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#dc2626",
   },
 
   safeArea: {
