@@ -28,6 +28,12 @@ Hasil build:
 BlockDesignApp-arm64-release.apk
 ```
 
+### Build APK melalui GitHub Actions
+
+Workflow **Build Android APK** dapat dijalankan dari tab **Actions** dengan memilih
+**Run workflow**. Workflow akan membuat APK release secara lokal di runner
+GitHub dan mengunggahnya sebagai artifact bernama `otak-atik-merah-putih-apk`.
+
 ## Fitur
 
 - Login dan registrasi lokal melalui email, kode unik, atau barcode

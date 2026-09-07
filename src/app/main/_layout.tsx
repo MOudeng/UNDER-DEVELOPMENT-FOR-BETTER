@@ -1,11 +1,17 @@
+// @ts-expect-error expo-router is provided by the Expo runtime but may not be
+// available to the editor's TypeScript module resolver.
 import { Tabs } from "expo-router";
-import { Home, User } from "lucide-react-native";
+// @ts-expect-error React is provided by the Expo runtime but may not be
+// available to the editor's TypeScript module resolver.
 import React from "react";
 
+const Text = "Text" as any;
+
 export default function MainLayout() {
-  return (
-    <Tabs
-      screenOptions={{
+  return React.createElement(
+    Tabs,
+    {
+      screenOptions: {
         headerShown: false,
         tabBarActiveTintColor: "#f45023",
         tabBarInactiveTintColor: "#999",
@@ -22,26 +28,23 @@ export default function MainLayout() {
           fontWeight: "600",
           marginTop: 4,
         },
-      }}
-    >
-      <Tabs.Screen
-        name="home"
-        options={{
-          title: "Beranda",
-          tabBarIcon: ({ color, size }) => (
-            <Home size={size} color={color} strokeWidth={2.5} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="akun"
-        options={{
-          title: "User",
-          tabBarIcon: ({ color, size }) => (
-            <User size={size} color={color} strokeWidth={2.5} />
-          ),
-        }}
-      />
-    </Tabs>
+      },
+    },
+    React.createElement(Tabs.Screen, {
+      name: "home",
+      options: {
+        title: "Beranda",
+        tabBarIcon: ({ color, size }: { color: string; size: number }) =>
+          React.createElement(Text, { style: { color, fontSize: size } }, "⌂"),
+      },
+    }),
+    React.createElement(Tabs.Screen, {
+      name: "akun",
+      options: {
+        title: "User",
+        tabBarIcon: ({ color, size }: { color: string; size: number }) =>
+          React.createElement(Text, { style: { color, fontSize: size } }, "●"),
+      },
+    }),
   );
 }

@@ -1,12 +1,5 @@
-import { Stack } from "expo-router";
+import { Redirect } from "expo-router";
 
 export default function VerificationLayout() {
-  return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        animation: "slide_from_right",
-      }}
-    />
-  );
+  return <Redirect href="/main/home" />;
 }

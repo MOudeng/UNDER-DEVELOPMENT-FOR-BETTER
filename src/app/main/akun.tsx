@@ -41,7 +41,7 @@ export default function AkunPage() {
         text: "Keluar",
         onPress: async () => {
           await logout();
-          router.replace("/splashscreen");
+          router.replace("/main/home");
         },
         style: "destructive",
       },
