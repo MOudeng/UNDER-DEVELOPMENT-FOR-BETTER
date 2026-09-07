@@ -49,7 +49,7 @@ export default function HelpAccess() {
                 <Text style={styles.helpDescription}>
                   Kode unik biasanya tercetak pada kemasan atau bagian dalam
                   Block Anda. Pastikan Anda sudah membeli Block original dari
-                  Otak-Atik Merah Putih.
+                  BrainBlock.id.
                 </Text>
               </View>
 
@@ -76,7 +76,7 @@ export default function HelpAccess() {
                 <Text style={styles.helpTitle}>Masalah lainnya?</Text>
                 <Text style={styles.helpDescription}>
                   Hubungi tim customer service kami di email atau WhatsApp yang
-                  tersedia di website resmi Otak-Atik Merah Putih.
+                  tersedia di website resmi BrainBlock.id.
                 </Text>
               </View>
             </View>

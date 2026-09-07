@@ -3,22 +3,22 @@ import { router, useLocalSearchParams } from "expo-router";
 import { ArrowLeft, ArrowRight, CheckCircle2, Play } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    useWindowDimensions,
-    View,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import PatternBackground from "../components/PatternBackground";
 import { useUser } from "../context/UserContext";
 import {
-    HistoryManagementService,
-    LevelManagementService,
-    ScoringEngine,
-    SessionManager,
-    TimerService,
+  HistoryManagementService,
+  LevelManagementService,
+  ScoringEngine,
+  SessionManager,
+  TimerService,
 } from "../services";
 import { Color, FontFamily, Gradient, Shadow } from "../styles/globalstyle";
 import { saveLevelPerformance } from "../utils/performanceStorage";
@@ -37,8 +37,6 @@ type StepResult = {
   step: number;
   player1Time: number;
   player2Time: number;
-  player1Score: number;
-  player2Score: number;
   mode: Mode;
 };
 
@@ -257,18 +255,10 @@ export default function GameplayPage() {
   };
 
   const finishStep = () => {
-    const score = ScoringEngine.calculateScore(
-      stepElapsedSeconds,
-      timeLimit,
-      1,
-    );
-
     saveResult({
       step: currentStep,
       player1Time: stepElapsedSeconds,
       player2Time: 0,
-      player1Score: score,
-      player2Score: 0,
       mode,
     });
 
@@ -291,16 +281,6 @@ export default function GameplayPage() {
         step: currentStep,
         player1Time: updatedPlayerTimes[0],
         player2Time: updatedPlayerTimes[1],
-        player1Score: ScoringEngine.calculateScore(
-          updatedPlayerTimes[0],
-          timeLimit,
-          1,
-        ),
-        player2Score: ScoringEngine.calculateScore(
-          updatedPlayerTimes[1],
-          timeLimit,
-          1,
-        ),
         mode,
       });
       setPhase("ready");

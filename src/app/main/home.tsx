@@ -1,12 +1,12 @@
 import { router, useFocusEffect } from "expo-router";
-import { Clock, Star, TrendingUp } from "lucide-react-native";
+import { Clock, TrendingUp } from "lucide-react-native";
 import { useCallback, useState } from "react";
 import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import StatCard from "../../components/StatCard";
@@ -14,10 +14,20 @@ import { useUser } from "../../context/UserContext";
 import { AnalyticsEngine, HistoryManagementService } from "../../services";
 import { getPerformanceStatistics } from "../../utils/performanceStorage";
 
+const formatDuration = (milliseconds: number) => {
+  const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000));
+  const minutes = Math.floor(totalSeconds / 60)
+    .toString()
+    .padStart(2, "0");
+  const seconds = (totalSeconds % 60).toString().padStart(2, "0");
+
+  return `${minutes}:${seconds}`;
+};
+
 export default function Home() {
   const { user } = useUser();
-  const [points, setPoints] = useState(0);
-  const [topScore, setTopScore] = useState(0);
+  const [fastestTime, setFastestTime] = useState(0);
+  const [averageTime, setAverageTime] = useState(0);
   const [analysisText, setAnalysisText] = useState(
     "Selesaikan permainan untuk melihat analisa performa.",
   );
@@ -28,8 +38,8 @@ export default function Home() {
     useCallback(() => {
       const loadStats = async () => {
         if (!user.id) {
-          setPoints(0);
-          setTopScore(0);
+          setFastestTime(0);
+          setAverageTime(0);
           return;
         }
 
@@ -38,14 +48,14 @@ export default function Home() {
           getPerformanceStatistics(user.id),
         ]);
 
-        setPoints(historyStats.completedGames * 100);
-        setTopScore(historyStats.bestScore);
+        setFastestTime(historyStats.bestTime);
+        setAverageTime(historyStats.averageTime);
 
         if (performanceStats) {
           const analysis =
             AnalyticsEngine.generateCognitiveAnalysis(performanceStats);
           setAnalysisText(
-            `Skor keseluruhan ${analysis.overallScore}/100. ${analysis.strengths[0] || "Terus berlatih untuk membangun kemampuan block design."}`,
+            `Waktu rata-rata ${formatDuration(historyStats.averageTime)}. ${analysis.strengths[0] || "Terus berlatih untuk meningkatkan kecepatan block design."}`,
           );
         }
       };
@@ -70,20 +80,19 @@ export default function Home() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Score Indicators Row */}
+          {/* Time Indicators Row */}
           <View style={styles.scoreRow}>
             <StatCard
               style={styles.scoreCard}
               icon={
-                <Star
-                  size={18}
+                <Clock
+                  size={17}
                   color="#FFFFFF"
                   strokeWidth={2.5}
-                  fill="#FFFFFF"
                 />
               }
-              label="POINTS"
-              value={points}
+              label="WAKTU TERCEPAT"
+              value={formatDuration(fastestTime)}
               accentColor="#f45023"
             />
 
@@ -97,8 +106,8 @@ export default function Home() {
                   fill="#FFFFFF"
                 />
               }
-              label="TOP SCORE"
-              value={topScore}
+              label="WAKTU RATA-RATA"
+              value={formatDuration(averageTime)}
               accentColor="#2563eb"
             />
           </View>

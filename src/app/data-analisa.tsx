@@ -13,8 +13,6 @@ type SessionResult = {
   step: number;
   player1Time: number;
   player2Time: number;
-  player1Score: number;
-  player2Score: number;
   mode: "single" | "double";
 };
 
@@ -56,14 +54,6 @@ export default function DataAnalisaPage() {
     (total, result) => total + result.player2Time,
     0,
   );
-  const player1TotalScore = results.reduce(
-    (total, result) => total + result.player1Score,
-    0,
-  );
-  const player2TotalScore = results.reduce(
-    (total, result) => total + result.player2Score,
-    0,
-  );
 
   return (
     <View style={styles.container}>
@@ -85,17 +75,11 @@ export default function DataAnalisaPage() {
                 <Text style={styles.playerSummaryTime}>
                   {formatTime(player1TotalTime)}
                 </Text>
-                <Text style={styles.playerSummaryScore}>
-                  Nilai {player1TotalScore}
-                </Text>
               </View>
               <View style={styles.playerSummaryCard}>
                 <Text style={styles.overallLabel}>PEMAIN 2</Text>
                 <Text style={styles.playerSummaryTime}>
                   {formatTime(player2TotalTime)}
-                </Text>
-                <Text style={styles.playerSummaryScore}>
-                  Nilai {player2TotalScore}
                 </Text>
               </View>
             </View>
@@ -104,7 +88,7 @@ export default function DataAnalisaPage() {
               <Text style={styles.overallLabel}>TOTAL SEMUA SOAL</Text>
               <Text style={styles.overallValue}>{formatTime(player1TotalTime)}</Text>
               <Text style={styles.overallMeta}>
-                Nilai {player1TotalScore} • {results.length} soal • 1 PLAYER
+                {results.length} soal • 1 PLAYER
               </Text>
             </View>
           )}
@@ -120,15 +104,15 @@ export default function DataAnalisaPage() {
                   {result.mode === "double" ? (
                     <View style={styles.playerTimes}>
                       <Text style={styles.resultTime}>
-                        P1 {formatTime(result.player1Time)} • {result.player1Score}
+                        P1 {formatTime(result.player1Time)}
                       </Text>
                       <Text style={styles.resultTime}>
-                        P2 {formatTime(result.player2Time)} • {result.player2Score}
+                        P2 {formatTime(result.player2Time)}
                       </Text>
                     </View>
                   ) : (
                     <Text style={styles.resultTime}>
-                      {formatTime(result.player1Time)} • Nilai {result.player1Score}
+                      {formatTime(result.player1Time)}
                     </Text>
                   )}
                 </View>
@@ -203,12 +187,6 @@ const styles = StyleSheet.create({
     lineHeight: 38,
     fontWeight: "900",
     marginTop: 8,
-  },
-  playerSummaryScore: {
-    color: "rgba(255,255,255,0.9)",
-    fontSize: 13,
-    fontWeight: "800",
-    marginTop: 4,
   },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 14 },
   scoreCard: {

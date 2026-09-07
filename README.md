@@ -1,4 +1,4 @@
-# Otak-Atik Merah Putih
+# BrainBlock.id
 
 Frontend `blockdesignapp-main` dengan fitur dan logika permainan dari
 `Pakanom`.

@@ -53,7 +53,7 @@ export default function VerificationPage() {
 
             {/* Title */}
             <Text style={styles.title}>Selamat Datang, di</Text>
-            <Text style={styles.titleBold}>Otak-Atik Merah Putih</Text>
+            <Text style={styles.titleBold}>BrainBlock.id</Text>
 
             {/* Verification Buttons */}
             <View style={styles.buttonContainer}>

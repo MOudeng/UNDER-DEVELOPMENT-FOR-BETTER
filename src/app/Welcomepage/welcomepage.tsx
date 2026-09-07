@@ -35,12 +35,12 @@ const WelcomePage = () => {
               Selamat Datang di
             </Text>
             <Text style={[styles.otakAtikMerahPutih, styles.lanjutkanFlexBox]}>
-              Otak-Atik Merah Putih
+              BrainBlock.id
             </Text>
           </View>
           <View style={[styles.descriptionapp]}>
             <Text style={[styles.otakAtikMerahPutih2]}>
-              Otak-Atik Merah Putih adalah aplikasi android yang dikembangkan
+              BrainBlock.id adalah aplikasi android yang dikembangkan
               berdasarkan proyek Block Design Test oleh jurusan Teknik Komputer
               PENS Surabaya. Terima kasih sudah membeli dan menggunakan produk
               kami, semoga bermanfaat untuk anda.
