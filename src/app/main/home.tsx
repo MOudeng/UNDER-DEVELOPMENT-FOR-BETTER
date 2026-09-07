@@ -1,18 +1,17 @@
 import { router, useFocusEffect } from "expo-router";
-import { Clock, TrendingUp } from "lucide-react-native";
+import { Clock } from "lucide-react-native";
 import { useCallback, useState } from "react";
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import StatCard from "../../components/StatCard";
 import { useUser } from "../../context/UserContext";
-import { AnalyticsEngine, HistoryManagementService } from "../../services";
-import { getPerformanceStatistics } from "../../utils/performanceStorage";
+import { HistoryManagementService } from "../../services";
 
 const formatDuration = (milliseconds: number) => {
   const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000));
@@ -28,9 +27,6 @@ export default function Home() {
   const { user } = useUser();
   const [fastestTime, setFastestTime] = useState(0);
   const [averageTime, setAverageTime] = useState(0);
-  const [analysisText, setAnalysisText] = useState(
-    "Selesaikan permainan untuk melihat analisa performa.",
-  );
 
   const userName = user.name || "User";
 
@@ -43,21 +39,12 @@ export default function Home() {
           return;
         }
 
-        const [historyStats, performanceStats] = await Promise.all([
-          HistoryManagementService.getStatistics(user.id),
-          getPerformanceStatistics(user.id),
-        ]);
+        const historyStats = await HistoryManagementService.getStatistics(
+          user.id,
+        );
 
         setFastestTime(historyStats.bestTime);
         setAverageTime(historyStats.averageTime);
-
-        if (performanceStats) {
-          const analysis =
-            AnalyticsEngine.generateCognitiveAnalysis(performanceStats);
-          setAnalysisText(
-            `Waktu rata-rata ${formatDuration(historyStats.averageTime)}. ${analysis.strengths[0] || "Terus berlatih untuk meningkatkan kecepatan block design."}`,
-          );
-        }
       };
 
       loadStats();
@@ -110,18 +97,6 @@ export default function Home() {
               value={formatDuration(averageTime)}
               accentColor="#2563eb"
             />
-          </View>
-
-          {/* Analysis Card */}
-          <View style={styles.analysisCard}>
-            <View style={styles.analysisTitleContainer}>
-              <View style={styles.analysisIconWrap}>
-                <TrendingUp size={18} color="#db320e" strokeWidth={2.5} />
-              </View>
-
-              <Text style={styles.analysisTitle}>ANALISA TEST TERAKHIR</Text>
-            </View>
-            <Text style={styles.analysisText}>{analysisText}</Text>
           </View>
 
           {/* Start Game Button */}
@@ -228,47 +203,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#333",
     textAlign: "left",
-  },
-  analysisCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: "rgba(231, 189, 183, 0.85)",
-    elevation: 6,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-  },
-
-  analysisTitleContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
-  },
-
-  analysisIconWrap: {
-    width: 30,
-    height: 30,
-    borderRadius: 32,
-    backgroundColor: "rgba(216, 57, 20, 0.08)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  analysisTitle: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#999",
-    letterSpacing: 0.5,
-  },
-  analysisText: {
-    fontSize: 13,
-    lineHeight: 20,
-    color: "#6b5a57",
   },
   startButton: {
     backgroundColor: "#f45023",

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Animated, StyleSheet, View } from "react-native";
+import { Animated, StyleSheet, Text, View } from "react-native";
 
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -50,6 +50,7 @@ export default function SplashScreen() {
               contentFit="contain"
               source={require("../assets/logo.png")}
             />
+            <Text style={styles.title}>BrainBlock.id</Text>
           </Animated.View>
         </View>
       </SafeAreaView>
@@ -76,5 +77,14 @@ const styles = StyleSheet.create({
   logo: {
     width: 170,
     height: 170,
+  },
+  title: {
+    marginTop: 14,
+    color: "#FFFFFF",
+    fontSize: 28,
+    lineHeight: 34,
+    fontWeight: "900",
+    letterSpacing: 0.4,
+    textAlign: "center",
   },
 });
