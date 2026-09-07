@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import { Animated, StyleSheet, View } from "react-native";
 
 import { Image } from "expo-image";
@@ -7,8 +7,8 @@ import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function SplashScreen() {
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+  const [fadeAnim] = useState(() => new Animated.Value(0));
+  const [scaleAnim] = useState(() => new Animated.Value(0.8));
 
   useEffect(() => {
     Animated.parallel([
@@ -25,12 +25,15 @@ export default function SplashScreen() {
       }),
     ]).start();
 
+  }, [fadeAnim, scaleAnim]);
+
+  useEffect(() => {
     const timer = setTimeout(() => {
       router.replace("/main/home");
     }, 2500);
 
     return () => clearTimeout(timer);
-  }, [fadeAnim, scaleAnim]);
+  }, []);
 
   return (
     <LinearGradient colors={["#dc2626", "#f55023"]} style={styles.container}>

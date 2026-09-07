@@ -1,7 +1,6 @@
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { Clock, Star, TrendingUp } from "lucide-react-native";
-import { useFocusEffect } from "@react-navigation/native";
-import React, { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   ScrollView,
   StyleSheet,
@@ -17,17 +16,13 @@ import { getPerformanceStatistics } from "../../utils/performanceStorage";
 
 export default function Home() {
   const { user } = useUser();
-  const [userName, setUserName] = useState("User");
   const [points, setPoints] = useState(0);
   const [topScore, setTopScore] = useState(0);
   const [analysisText, setAnalysisText] = useState(
     "Selesaikan permainan untuk melihat analisa performa.",
   );
 
-  useEffect(() => {
-    // Get username from user context
-    setUserName(user.name || "User");
-  }, [user.name]);
+  const userName = user.name || "User";
 
   useFocusEffect(
     useCallback(() => {

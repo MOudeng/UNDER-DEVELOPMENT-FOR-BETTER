@@ -1,7 +1,6 @@
-import { useFocusEffect } from "@react-navigation/native";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { Clock, Star } from "lucide-react-native";
-import React, { useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   Alert,
   FlatList,
@@ -12,13 +11,13 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { GamePerformance } from "../types/gamePerformance";
 import { useUser } from "../context/UserContext";
 import {
   HistoryManagementService,
   LevelManagementService,
   TimerService,
 } from "../services";
+import { GamePerformance } from "../types/gamePerformance";
 
 export default function RiwayatPage() {
   const { user } = useUser();

@@ -1,11 +1,6 @@
-// @ts-expect-error expo-router is provided by the Expo runtime but may not be
-// available to the editor's TypeScript module resolver.
 import { Tabs } from "expo-router";
-// @ts-expect-error React is provided by the Expo runtime but may not be
-// available to the editor's TypeScript module resolver.
 import React from "react";
-
-const Text = "Text" as any;
+import { ColorValue, Text } from "react-native";
 
 export default function MainLayout() {
   return React.createElement(
@@ -34,7 +29,7 @@ export default function MainLayout() {
       name: "home",
       options: {
         title: "Beranda",
-        tabBarIcon: ({ color, size }: { color: string; size: number }) =>
+        tabBarIcon: ({ color, size }: { color: ColorValue; size: number }) =>
           React.createElement(Text, { style: { color, fontSize: size } }, "⌂"),
       },
     }),
@@ -42,7 +37,7 @@ export default function MainLayout() {
       name: "akun",
       options: {
         title: "User",
-        tabBarIcon: ({ color, size }: { color: string; size: number }) =>
+        tabBarIcon: ({ color, size }: { color: ColorValue; size: number }) =>
           React.createElement(Text, { style: { color, fontSize: size } }, "●"),
       },
     }),

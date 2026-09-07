@@ -1,17 +1,24 @@
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { ArrowLeft, ArrowRight, CheckCircle2, Play } from "lucide-react-native";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    useWindowDimensions,
+    View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import PatternBackground from "../components/PatternBackground";
 import { useUser } from "../context/UserContext";
 import {
-  HistoryManagementService,
-  LevelManagementService,
-  ScoringEngine,
-  SessionManager,
-  TimerService,
+    HistoryManagementService,
+    LevelManagementService,
+    ScoringEngine,
+    SessionManager,
+    TimerService,
 } from "../services";
 import { Color, FontFamily, Gradient, Shadow } from "../styles/globalstyle";
 import { saveLevelPerformance } from "../utils/performanceStorage";
@@ -30,6 +37,8 @@ type StepResult = {
   step: number;
   player1Time: number;
   player2Time: number;
+  player1Score: number;
+  player2Score: number;
   mode: Mode;
 };
 
@@ -37,10 +46,10 @@ const TOTAL_STEPS = 8;
 
 const STEP_ASSETS = [
   [
-    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 1a.png"),
-    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 1b.png"),
-    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 1c.png"),
-    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 1d.png"),
+    require("../../assets/E01.svg"),
+    require("../../assets/E02.svg"),
+    require("../../assets/E03.svg"),
+    require("../../assets/E04.svg"),
   ],
   [
     require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 2a.png"),
@@ -107,6 +116,7 @@ const formatTime = (seconds: number) => {
 const PLAYER_LABELS = ["Pemain 1", "Pemain 2"] as const;
 
 export default function GameplayPage() {
+  const { width, height } = useWindowDimensions();
   const { user } = useUser();
   const { mode = "single", choice = "test" } =
     useLocalSearchParams<SearchParams>();
@@ -129,6 +139,9 @@ export default function GameplayPage() {
   const modeLabel = mode === "single" ? "1 PLAYER" : "2 PLAYER";
   const choiceLabel = choice === "test" ? "TEST" : "PRACTICE / SIMULASI";
   const isDoubleMode = mode === "double";
+  const isLandscape = width > height;
+  const landscapeBodyWidth = Math.min(320, Math.max(200, width * 0.28));
+  const landscapePatternSize = Math.min(360, Math.max(160, height - 150));
 
   const saveResult = useCallback((result: StepResult) => {
     if (savedResults.current.has(result.step)) {
@@ -209,12 +222,6 @@ export default function GameplayPage() {
   }, [choice, mode, user.id]);
 
   useEffect(() => {
-    setStepElapsedSeconds(0);
-    setPlayerTimes([0, 0]);
-    setFinishedPlayers([false, false]);
-  }, [currentStep]);
-
-  useEffect(() => {
     if (phase !== "running") {
       return;
     }
@@ -236,41 +243,13 @@ export default function GameplayPage() {
   }, [phase, finishedPlayers, isDoubleMode]);
 
   useEffect(() => {
-    if (
-      phase === "running" &&
-      isDoubleMode &&
-      finishedPlayers[0] &&
-      finishedPlayers[1]
-    ) {
-      saveResult({
-        step: currentStep,
-        player1Time: playerTimes[0],
-        player2Time: playerTimes[1],
-        mode,
-      });
-
-      setPhase("ready");
-    }
-  }, [
-    currentStep,
-    finishedPlayers,
-    isDoubleMode,
-    mode,
-    phase,
-    playerTimes,
-    saveResult,
-  ]);
-
-  useEffect(() => {
     if (phase === "ready") {
       persistCurrentStep();
     }
   }, [phase, persistCurrentStep]);
 
   const startStep = () => {
-    if (currentStep === 1 && phase === "idle") {
-      setElapsedSeconds(0);
-    }
+    setElapsedSeconds(0);
     setStepElapsedSeconds(0);
     setPlayerTimes([0, 0]);
     setFinishedPlayers([false, false]);
@@ -278,10 +257,18 @@ export default function GameplayPage() {
   };
 
   const finishStep = () => {
+    const score = ScoringEngine.calculateScore(
+      stepElapsedSeconds,
+      timeLimit,
+      1,
+    );
+
     saveResult({
       step: currentStep,
       player1Time: stepElapsedSeconds,
       player2Time: 0,
+      player1Score: score,
+      player2Score: 0,
       mode,
     });
 
@@ -289,15 +276,35 @@ export default function GameplayPage() {
   };
 
   const handlePlayerFinish = (playerIndex: number) => {
-    setFinishedPlayers((prev) => {
-      const updated = [...prev];
+    if (phase !== "running" || finishedPlayers[playerIndex]) {
+      return;
+    }
 
-      if (!updated[playerIndex]) {
-        updated[playerIndex] = true;
-      }
+    const updated = [...finishedPlayers];
+    updated[playerIndex] = true;
+    setFinishedPlayers(updated);
 
-      return updated;
-    });
+    if (updated[0] && updated[1]) {
+      const updatedPlayerTimes = [...playerTimes];
+      updatedPlayerTimes[playerIndex] = playerTimes[playerIndex];
+      saveResult({
+        step: currentStep,
+        player1Time: updatedPlayerTimes[0],
+        player2Time: updatedPlayerTimes[1],
+        player1Score: ScoringEngine.calculateScore(
+          updatedPlayerTimes[0],
+          timeLimit,
+          1,
+        ),
+        player2Score: ScoringEngine.calculateScore(
+          updatedPlayerTimes[1],
+          timeLimit,
+          1,
+        ),
+        mode,
+      });
+      setPhase("ready");
+    }
   };
 
   const finishGame = () => {
@@ -309,17 +316,12 @@ export default function GameplayPage() {
       });
     }
 
-    if (choice === "test") {
-      router.push({
-        pathname: "/data-analisa",
-        params: {
-          results: JSON.stringify(results),
-        },
-      });
-      return;
-    }
-
-    router.push("/main/home");
+    router.push({
+      pathname: "/data-analisa",
+      params: {
+        results: JSON.stringify(results),
+      },
+    });
   };
 
   const goNextStep = () => {
@@ -328,6 +330,10 @@ export default function GameplayPage() {
       return;
     }
 
+    setStepElapsedSeconds(0);
+    setPlayerTimes([0, 0]);
+    setFinishedPlayers([false, false]);
+    setElapsedSeconds(0);
     setCurrentStep((step) => step + 1);
     setPhase("idle");
   };
@@ -382,10 +388,15 @@ export default function GameplayPage() {
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            isLandscape && styles.landscapeContent,
+          ]}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.headerCard}>
+          <View
+            style={[styles.headerCard, isLandscape && styles.landscapeHeaderCard]}
+          >
             <PatternBackground
               position="topRight"
               opacity={0.2}
@@ -415,8 +426,19 @@ export default function GameplayPage() {
               </View>
             </View>
 
-            <View style={styles.patternCard}>
-              <View style={styles.patternFrame}>
+            <View
+              style={[styles.patternCard, isLandscape && styles.landscapePatternCard]}
+            >
+              <View
+                style={[
+                  styles.patternFrame,
+                  isLandscape && styles.landscapePatternFrame,
+                  isLandscape && {
+                    width: landscapePatternSize,
+                    height: landscapePatternSize,
+                  },
+                ]}
+              >
                 {phase === "idle" ? (
                   <View style={styles.patternPlaceholder} />
                 ) : (
@@ -446,7 +468,13 @@ export default function GameplayPage() {
             )}
           </View>
 
-          <View style={styles.bodyCard}>
+          <View
+            style={[
+              styles.bodyCard,
+              isLandscape && styles.landscapeBodyCard,
+              isLandscape && { width: landscapeBodyWidth },
+            ]}
+          >
             <PatternBackground position="bottomLeft" opacity={0.12} />
 
             {isDoubleMode ? (
@@ -582,6 +610,13 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 18,
   },
+  landscapeContent: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    gap: 14,
+    paddingTop: 12,
+    paddingBottom: 12,
+  },
   headerCard: {
     minHeight: 450,
     backgroundColor: Color.colorWhite,
@@ -596,6 +631,13 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: Shadow.medium,
     overflow: "hidden",
+  },
+  landscapeHeaderCard: {
+    flex: 1,
+    minHeight: 0,
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 12,
   },
   headerTopRow: {
     flexDirection: "row",
@@ -647,11 +689,25 @@ const styles = StyleSheet.create({
     shadowRadius: 18,
     elevation: Shadow.medium,
   },
-  patternFrame: {
+  landscapePatternCard: {
     flex: 1,
+    minHeight: 0,
+    marginTop: 8,
+    marginBottom: 8,
+    padding: 8,
+  },
+  patternFrame: {
+    width: "100%",
+    aspectRatio: 1,
     borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "#111111",
     overflow: "hidden",
     backgroundColor: Color.colorWhite,
+  },
+  landscapePatternFrame: {
+    flex: 0,
+    alignSelf: "center",
   },
   patternImage: {
     width: "100%",
@@ -681,6 +737,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "white",
+  },
+  landscapeBodyCard: {
+    width: 220,
+    flex: 0,
+    minHeight: 0,
+    marginTop: 0,
+    paddingHorizontal: 10,
+    paddingTop: 12,
+    paddingBottom: 12,
   },
   actionGroup: {
     alignItems: "center",

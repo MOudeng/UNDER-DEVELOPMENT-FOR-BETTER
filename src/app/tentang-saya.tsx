@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { ArrowLeft, Calendar, Edit2 } from "lucide-react-native";
-import React, { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -16,41 +16,28 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useUser } from "../context/UserContext";
 
+const createFormData = (user: ReturnType<typeof useUser>["user"]) => ({
+  email: user.email || "",
+  password: user.password || "",
+  namaLengkap: user.name || "",
+  gender:
+    user.gender === "male"
+      ? "Laki-laki"
+      : user.gender === "female"
+        ? "Perempuan"
+        : "",
+  tanggalLahir: user.birthDate || "",
+  namaSekolah: user.school || "",
+  tinggiBadan: user.height ? String(user.height) : "",
+  beratBadan: user.weight ? String(user.weight) : "",
+  tentangAnak: user.about || "",
+});
+
 export default function TentangSayaPage() {
   const { user, updateUser } = useUser();
-  const [formData, setFormData] = useState({
-    email: user.email || "",
-    password: "",
-    namaLengkap: user.name || "",
-    gender: "",
-    tanggalLahir: "",
-    namaSekolah: "",
-    tinggiBadan: "",
-    beratBadan: "",
-    tentangAnak: "",
-  });
+  const [formData, setFormData] = useState(() => createFormData(user));
 
   const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    setFormData((current) => ({
-      ...current,
-      email: user.email || "",
-      password: user.password || "",
-      namaLengkap: user.name || "",
-      gender:
-        user.gender === "male"
-          ? "Laki-laki"
-          : user.gender === "female"
-            ? "Perempuan"
-            : "",
-      tanggalLahir: user.birthDate || "",
-      namaSekolah: user.school || "",
-      tinggiBadan: user.height ? String(user.height) : "",
-      beratBadan: user.weight ? String(user.weight) : "",
-      tentangAnak: user.about || "",
-    }));
-  }, [user]);
 
   // Date picker state
   const [showDatePicker, setShowDatePicker] = useState(false);

@@ -2,16 +2,16 @@
   "expo": {
     "name": "Otak-Atik Merah Putih",
     "slug": "otak-atik-merah-putih",
-    "version": "1.0.0",
-    "orientation": "portrait",
+    "version": "1.0.3",
+    "orientation": "default",
     "icon": "./assets/images/logo.png",
-    "scheme": "blockdesignapp",
+    "scheme": "brainblockapp",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/images/logo.png"
     },
     "android": {
-      "package": "com.blockdesignapp",
+      "package": "id.brainblock.app",
       "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/logo.png",
@@ -52,7 +52,9 @@
         {
           "photosPermission": "Aplikasi membutuhkan akses galeri untuk upload barcode"
         }
-      ]
+      ],
+      "expo-image",
+      "expo-status-bar"
     ],
     "experiments": {
       "typedRoutes": true,
