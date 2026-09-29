@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
-import { ArrowLeft, ArrowRight, CheckCircle2, Play } from "lucide-react-native";
+import { ArrowLeft, ArrowRight, Play } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Pressable,
@@ -23,11 +23,9 @@ import {
 import { Color, FontFamily, Gradient, Shadow } from "../styles/globalstyle";
 import { saveLevelPerformance } from "../utils/performanceStorage";
 
-type Mode = "single" | "double";
 type Choice = "test" | "practice";
 
 type SearchParams = {
-  mode?: Mode;
   choice?: Choice;
 };
 
@@ -37,7 +35,7 @@ type StepResult = {
   step: number;
   player1Time: number;
   player2Time: number;
-  mode: Mode;
+  mode: "single";
 };
 
 const TOTAL_STEPS = 8;
@@ -98,35 +96,18 @@ const randomizeStepChoices = () =>
     (stepAssets) => stepAssets[Math.floor(Math.random() * stepAssets.length)],
   );
 
-const formatTime = (seconds: number) => {
-  const isNegative = seconds < 0;
-  const absSeconds = Math.abs(seconds);
-
-  const minutes = Math.floor(absSeconds / 60)
-    .toString()
-    .padStart(2, "0");
-
-  const remainingSeconds = (absSeconds % 60).toString().padStart(2, "0");
-
-  return `${isNegative ? "-" : ""}${minutes}:${remainingSeconds}`;
-};
-
-const PLAYER_LABELS = ["Pemain 1", "Pemain 2"] as const;
-
 export default function GameplayPage() {
   const { width, height } = useWindowDimensions();
   const { user } = useUser();
-  const { mode = "single", choice = "test" } =
-    useLocalSearchParams<SearchParams>();
+  const { choice = "test" } = useLocalSearchParams<SearchParams>();
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [currentStep, setCurrentStep] = useState(1);
   const currentLevel = LevelManagementService.getLevelById(currentStep);
   const timeLimit = currentLevel?.timeLimit || 60;
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [stepElapsedSeconds, setStepElapsedSeconds] = useState(0);
-  const [playerTimes, setPlayerTimes] = useState([0, 0]);
-  const [finishedPlayers, setFinishedPlayers] = useState([false, false]);
+  const elapsedSecondsRef = useRef(0);
+  const isAdvancingRef = useRef(false);
   const [results, setResults] = useState<StepResult[]>([]);
   const savedSteps = useRef(new Set<number>());
   const savedResults = useRef(new Set<number>());
@@ -134,9 +115,7 @@ export default function GameplayPage() {
   const stepChoices = useMemo(() => randomizeStepChoices(), []);
   const currentImage = stepChoices[currentStep - 1];
   const isLastStep = currentStep === TOTAL_STEPS;
-  const modeLabel = mode === "single" ? "1 PLAYER" : "2 PLAYER";
   const choiceLabel = choice === "test" ? "TEST" : "PRACTICE / SIMULASI";
-  const isDoubleMode = mode === "double";
   const isLandscape = width > height;
   const landscapeBodyWidth = Math.min(320, Math.max(200, width * 0.28));
   const landscapePatternSize = Math.min(360, Math.max(160, height - 150));
@@ -150,17 +129,12 @@ export default function GameplayPage() {
     setResults((prev) => [...prev, result]);
   }, []);
 
-  const persistCurrentStep = useCallback(async () => {
+  const persistCurrentStep = useCallback(async (timeSpent: number) => {
     if (!user.id || savedSteps.current.has(currentStep)) {
       return;
     }
 
     savedSteps.current.add(currentStep);
-    const singleTimeSpent = stepElapsedSeconds;
-    const doubleTimeSpent = Math.max(playerTimes[0] || 0, playerTimes[1] || 0);
-    const timeSpent = isDoubleMode
-      ? Math.max(0, doubleTimeSpent)
-      : singleTimeSpent;
 
     const scoringResult = ScoringEngine.createLevelCompletion({
       levelId: currentStep,
@@ -194,104 +168,22 @@ export default function GameplayPage() {
       score: scoringResult.score,
       timeSpent,
       choice,
-      mode,
+      mode: "single",
     });
   }, [
     choice,
     currentLevel?.title,
     currentStep,
-    isDoubleMode,
-    mode,
-    playerTimes,
-    stepElapsedSeconds,
     timeLimit,
     user.id,
     user.name,
   ]);
 
-  useEffect(() => {
-    if (user.id) {
-      HistoryManagementService.startSession(user.id);
-      SessionManager.logActivity(user.id, "game_start", "gameplay", {
-        mode,
-        choice,
-      });
-    }
-  }, [choice, mode, user.id]);
-
-  useEffect(() => {
-    if (phase !== "running") {
-      return;
-    }
-
-    const timer = setInterval(() => {
-      if (isDoubleMode) {
-        setPlayerTimes((prev) =>
-          prev.map((time, index) =>
-            finishedPlayers[index] ? time : time + 1,
-          ),
-        );
-      } else {
-        setElapsedSeconds((time) => time + 1);
-        setStepElapsedSeconds((time) => time + 1);
-      }
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [phase, finishedPlayers, isDoubleMode]);
-
-  useEffect(() => {
-    if (phase === "ready") {
-      persistCurrentStep();
-    }
-  }, [phase, persistCurrentStep]);
-
-  const startStep = () => {
-    setElapsedSeconds(0);
-    setStepElapsedSeconds(0);
-    setPlayerTimes([0, 0]);
-    setFinishedPlayers([false, false]);
-    setPhase("running");
-  };
-
-  const finishStep = () => {
-    saveResult({
-      step: currentStep,
-      player1Time: stepElapsedSeconds,
-      player2Time: 0,
-      mode,
-    });
-
-    setPhase("ready");
-  };
-
-  const handlePlayerFinish = (playerIndex: number) => {
-    if (phase !== "running" || finishedPlayers[playerIndex]) {
-      return;
-    }
-
-    const updated = [...finishedPlayers];
-    updated[playerIndex] = true;
-    setFinishedPlayers(updated);
-
-    if (updated[0] && updated[1]) {
-      const updatedPlayerTimes = [...playerTimes];
-      updatedPlayerTimes[playerIndex] = playerTimes[playerIndex];
-      saveResult({
-        step: currentStep,
-        player1Time: updatedPlayerTimes[0],
-        player2Time: updatedPlayerTimes[1],
-        mode,
-      });
-      setPhase("ready");
-    }
-  };
-
-  const finishGame = () => {
+  const finishGame = useCallback((finalResults: StepResult[]) => {
     if (user.id) {
       HistoryManagementService.endSession(user.id);
       SessionManager.logActivity(user.id, "game_complete", "gameplay", {
-        mode,
+        mode: "single",
         choice,
       });
     }
@@ -299,69 +191,70 @@ export default function GameplayPage() {
     router.push({
       pathname: "/data-analisa",
       params: {
-        results: JSON.stringify(results),
+        results: JSON.stringify(finalResults),
       },
     });
-  };
+  }, [choice, user.id]);
 
-  const goNextStep = () => {
-    if (isLastStep) {
-      finishGame();
+  useEffect(() => {
+    if (user.id) {
+      HistoryManagementService.startSession(user.id);
+      SessionManager.logActivity(user.id, "game_start", "gameplay", {
+        mode: "single",
+        choice,
+      });
+    }
+  }, [choice, user.id]);
+
+  useEffect(() => {
+    if (phase !== "running") {
       return;
     }
 
-    setStepElapsedSeconds(0);
-    setPlayerTimes([0, 0]);
-    setFinishedPlayers([false, false]);
+    const timer = setInterval(() => {
+      const nextTime = elapsedSecondsRef.current + 1;
+      elapsedSecondsRef.current = nextTime;
+      setElapsedSeconds(nextTime);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [phase]);
+
+  const startStep = () => {
+    elapsedSecondsRef.current = 0;
+    isAdvancingRef.current = false;
+    setElapsedSeconds(0);
+    setPhase("running");
+  };
+
+  const handleNextStep = async () => {
+    if (phase !== "running" || isAdvancingRef.current) {
+      return;
+    }
+
+    isAdvancingRef.current = true;
+    setPhase("ready");
+
+    const timeSpent = elapsedSecondsRef.current;
+    const result: StepResult = {
+      step: currentStep,
+      player1Time: timeSpent,
+      player2Time: 0,
+      mode: "single",
+    };
+
+    saveResult(result);
+    await persistCurrentStep(timeSpent);
+
+    if (isLastStep) {
+      finishGame([...results, result]);
+      return;
+    }
+
+    elapsedSecondsRef.current = 0;
     setElapsedSeconds(0);
     setCurrentStep((step) => step + 1);
     setPhase("idle");
-  };
-
-  const actionLabel =
-    phase === "idle"
-      ? "Mulai"
-      : phase === "running"
-        ? "Selesai"
-        : isLastStep
-          ? "Selesai"
-          : "Lanjutkan";
-
-  const actionIcon =
-    phase === "idle" ? (
-      <Play
-        color={Color.colorWhite}
-        size={22}
-        fill={Color.colorWhite}
-        strokeWidth={2.5}
-      />
-    ) : phase === "running" ? (
-      <CheckCircle2 color={Color.colorWhite} size={22} strokeWidth={2.5} />
-    ) : (
-      <ArrowRight color={Color.colorWhite} size={22} strokeWidth={2.5} />
-    );
-
-  const handleActionPress = () => {
-    if (phase === "idle") {
-      startStep();
-      return;
-    }
-
-    if (phase === "running") {
-      finishStep();
-      return;
-    }
-
-    goNextStep();
-  };
-
-  const handleDoubleReadyAction = (action: "next" | "back") => {
-    if (action === "back") {
-      router.back();
-      return;
-    }
-
-    goNextStep();
   };
 
   return (
@@ -400,9 +293,7 @@ export default function GameplayPage() {
 
               <View style={styles.headerTextWrap}>
                 <Text style={styles.headerTitle}>Pola - {currentStep}</Text>
-                <Text style={styles.headerSubtitle}>
-                  {modeLabel} • {choiceLabel}
-                </Text>
+                <Text style={styles.headerSubtitle}>{choiceLabel}</Text>
               </View>
             </View>
 
@@ -431,21 +322,9 @@ export default function GameplayPage() {
               </View>
             </View>
 
-            {isDoubleMode ? (
-              <View style={styles.doubleTimerRow}>
-                <Text style={styles.timerText}>
-                  {formatTime(playerTimes[0])}
-                </Text>
-
-                <Text style={styles.timerText}>
-                  {formatTime(playerTimes[1])}
-                </Text>
-              </View>
-            ) : (
-              <Text style={styles.timerText}>
-                {TimerService.formatSeconds(elapsedSeconds)}
-              </Text>
-            )}
+            <Text style={styles.timerText}>
+              {TimerService.formatSeconds(elapsedSeconds)}
+            </Text>
           </View>
 
           <View
@@ -457,118 +336,46 @@ export default function GameplayPage() {
           >
             <PatternBackground position="bottomLeft" opacity={0.12} />
 
-            {isDoubleMode ? (
-              phase === "ready" ? (
-                <View style={styles.doubleReadyActions}>
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.doubleNextButton,
-                      pressed && styles.buttonPressed,
-                    ]}
-                    onPress={() => handleDoubleReadyAction("next")}
-                  >
-                    <Text style={styles.doubleNextButtonText}>Next</Text>
-                    <ArrowRight
-                      color={Color.colorWhite}
-                      size={18}
-                      strokeWidth={2.4}
-                    />
-                  </Pressable>
-
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.doubleBackButton,
-                      pressed && styles.buttonPressed,
-                    ]}
-                    onPress={() => handleDoubleReadyAction("back")}
-                  >
-                    <ArrowLeft
-                      color={Color.colorOrangered}
-                      size={18}
-                      strokeWidth={2.4}
-                    />
-                    <Text style={styles.doubleBackButtonText}>Kembali</Text>
-                  </Pressable>
-                </View>
-              ) : phase === "idle" ? (
-                <View style={styles.actionGroup}>
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.primaryWideButton,
-                      pressed && styles.buttonPressed,
-                    ]}
-                    onPress={startStep}
-                  >
-                    <View style={styles.actionInner}>
-                      <Text style={styles.actionLabelInside}>Mulai</Text>
-                      <Play
-                        color={Color.colorWhite}
-                        size={22}
-                        fill={Color.colorWhite}
-                        strokeWidth={2.5}
-                      />
-                    </View>
-                  </Pressable>
-                </View>
-              ) : (
-                <View style={styles.doubleActionGrid}>
-                  {PLAYER_LABELS.map((playerLabel, index) => (
-                    <Pressable
-                      key={playerLabel}
-                      style={({ pressed }) => [
-                        styles.doublePlayerButton,
-                        pressed && styles.buttonPressed,
-                      ]}
-                      onPress={() => {
-                        if (phase === "running" && !finishedPlayers[index]) {
-                          handlePlayerFinish(index);
-                        }
-                      }}
-                    >
-                      <View style={styles.doublePlayerButtonInner}>
-                        <CheckCircle2
-                          color={Color.colorWhite}
-                          size={20}
-                          strokeWidth={2.5}
-                        />
-
-                        <Text style={styles.doublePlayerButtonText}>
-                          Selesai
-                        </Text>
-                      </View>
-                      <Text style={styles.doublePlayerLabel}>
-                        {playerLabel}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              )
-            ) : (
+            {phase === "idle" ? (
               <View style={styles.actionGroup}>
                 <Pressable
                   style={({ pressed }) => [
-                    phase === "ready"
-                      ? styles.primaryWideButton
-                      : styles.primaryCircleButton,
+                    styles.primaryWideButton,
                     pressed && styles.buttonPressed,
                   ]}
-                  onPress={handleActionPress}
+                  onPress={startStep}
                 >
                   <View style={styles.actionInner}>
-                    {phase === "ready" ? (
-                      <>
-                        <Text style={styles.actionLabelInside}>
-                          {actionLabel}
-                        </Text>
-                        {actionIcon}
-                      </>
-                    ) : (
-                      actionIcon
-                    )}
+                    <Text style={styles.actionLabelInside}>Mulai</Text>
+                    <Play
+                      color={Color.colorWhite}
+                      size={22}
+                      fill={Color.colorWhite}
+                      strokeWidth={2.5}
+                    />
                   </View>
                 </Pressable>
               </View>
-            )}
+            ) : phase === "running" ? (
+              <View style={styles.actionGroup}>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.primaryWideButton,
+                    pressed && styles.buttonPressed,
+                  ]}
+                  onPress={handleNextStep}
+                >
+                  <View style={styles.actionInner}>
+                    <Text style={styles.actionLabelInside}>Next</Text>
+                    <ArrowRight
+                      color={Color.colorWhite}
+                      size={22}
+                      strokeWidth={2.5}
+                    />
+                  </View>
+                </Pressable>
+              </View>
+            ) : null}
           </View>
         </ScrollView>
       </SafeAreaView>

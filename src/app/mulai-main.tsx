@@ -1,14 +1,18 @@
 import { router } from "expo-router";
-import { ChevronRight, Gamepad2, User, Users } from "lucide-react-native";
-import React from "react";
+import {
+  ArrowLeft,
+  ChevronRight,
+  Gamepad2,
+  Home,
+} from "lucide-react-native";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function MulaiMainPage() {
-  const handleModePress = (mode: "single" | "double") => {
+  const handleModePress = () => {
     router.push({
       pathname: "/gamemode",
-      params: { mode },
+      params: { mode: "single" },
     });
   };
 
@@ -23,7 +27,7 @@ export default function MulaiMainPage() {
             <View style={styles.heroIconWrap}>
               <Gamepad2 color="#db320e" size={36} strokeWidth={3} />
             </View>
-            <Text style={styles.heroTitle}>Pilih Mode Pemain</Text>
+            <Text style={styles.heroTitle}>Mulai Permainan</Text>
             <Text style={styles.heroSubtitle}>
               Tentukan cara bermain sebelum masuk ke sesi berikutnya.
             </Text>
@@ -35,14 +39,14 @@ export default function MulaiMainPage() {
                 styles.modeCard,
                 pressed && styles.modeCardPressed,
               ]}
-              onPress={() => handleModePress("single")}
+              onPress={handleModePress}
             >
               <View style={styles.modeIconWrap}>
-                <User color="#db320e" size={38} strokeWidth={2.2} />
+                <Gamepad2 color="#db320e" size={36} strokeWidth={2.2} />
               </View>
 
               <View style={styles.modeTextWrap}>
-                <Text style={styles.modeTitle}>1-PLAYER</Text>
+                <Text style={styles.modeTitle}>MULAI</Text>
                 <Text style={styles.modeDescription}>
                   Main sendiri dan lanjutkan ke mode latihan atau tes.
                 </Text>
@@ -52,28 +56,30 @@ export default function MulaiMainPage() {
                 <ChevronRight color="#db320e" size={24} strokeWidth={2.6} />
               </View>
             </Pressable>
+          </View>
+
+          <View style={styles.navigationRow}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.navigationButton,
+                pressed && styles.buttonPressed,
+              ]}
+              onPress={() => router.back()}
+            >
+              <ArrowLeft color="#db320e" size={18} strokeWidth={2.5} />
+              <Text style={styles.navigationButtonText}>Kembali</Text>
+            </Pressable>
 
             <Pressable
               style={({ pressed }) => [
-                styles.modeCard,
-                pressed && styles.modeCardPressed,
+                styles.navigationButton,
+                styles.homeButton,
+                pressed && styles.buttonPressed,
               ]}
-              onPress={() => handleModePress("double")}
+              onPress={() => router.replace("/main/home")}
             >
-              <View style={styles.modeIconWrap}>
-                <Users color="#d83914" size={34} strokeWidth={2.2} />
-              </View>
-
-              <View style={styles.modeTextWrap}>
-                <Text style={styles.modeTitle}>2-PLAYER</Text>
-                <Text style={styles.modeDescription}>
-                  Bermain bergantian bersama pemain lain di perangkat ini.
-                </Text>
-              </View>
-
-              <View style={styles.nextIconWrap}>
-                <ChevronRight color="#db320e" size={24} strokeWidth={2.6} />
-              </View>
+              <Home color="#FFFFFF" size={18} strokeWidth={2.5} />
+              <Text style={styles.homeButtonText}>Beranda</Text>
             </Pressable>
           </View>
         </ScrollView>
@@ -136,6 +142,41 @@ const styles = StyleSheet.create({
   },
   cardList: {
     gap: 14,
+  },
+  navigationRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: "auto",
+    paddingTop: 22,
+  },
+  navigationButton: {
+    flex: 1,
+    minHeight: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(219, 50, 14, 0.22)",
+    backgroundColor: "#FFFFFF",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+  },
+  homeButton: {
+    backgroundColor: "#db320e",
+    borderColor: "#db320e",
+  },
+  navigationButtonText: {
+    color: "#db320e",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  homeButtonText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  buttonPressed: {
+    opacity: 0.85,
   },
   modeCard: {
     backgroundColor: "#ffffff",

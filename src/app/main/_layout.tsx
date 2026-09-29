@@ -36,9 +36,7 @@ export default function MainLayout() {
     React.createElement(Tabs.Screen, {
       name: "akun",
       options: {
-        title: "User",
-        tabBarIcon: ({ color, size }: { color: ColorValue; size: number }) =>
-          React.createElement(Text, { style: { color, fontSize: size } }, "●"),
+        href: null,
       },
     }),
   );

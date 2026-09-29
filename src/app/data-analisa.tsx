@@ -1,4 +1,5 @@
 import { router, useLocalSearchParams } from "expo-router";
+import { Home } from "lucide-react-native";
 import { useMemo } from "react";
 import {
     ScrollView,
@@ -12,8 +13,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 type SessionResult = {
   step: number;
   player1Time: number;
-  player2Time: number;
-  mode: "single" | "double";
 };
 
 type SearchParams = {
@@ -45,22 +44,26 @@ export default function DataAnalisaPage() {
     }
   }, [rawResults]);
 
-  const mode = results[0]?.mode || "single";
   const player1TotalTime = results.reduce(
     (total, result) => total + result.player1Time,
-    0,
-  );
-  const player2TotalTime = results.reduce(
-    (total, result) => total + result.player2Time,
     0,
   );
 
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backButtonText}>Kembali</Text>
-        </TouchableOpacity>
+        <View style={styles.navigationRow}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <Text style={styles.backButtonText}>Kembali</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.homeButton}
+            onPress={() => router.replace("/main/home")}
+          >
+            <Home color="#FFFFFF" size={18} strokeWidth={2.5} />
+            <Text style={styles.homeButtonText}>Beranda</Text>
+          </TouchableOpacity>
+        </View>
 
         <ScrollView
           contentContainerStyle={styles.scrollContent}
@@ -68,30 +71,11 @@ export default function DataAnalisaPage() {
         >
           <Text style={styles.title}>Hasil Permainan</Text>
 
-          {mode === "double" ? (
-            <View style={styles.playerSummaryRow}>
-              <View style={styles.playerSummaryCard}>
-                <Text style={styles.overallLabel}>PEMAIN 1</Text>
-                <Text style={styles.playerSummaryTime}>
-                  {formatTime(player1TotalTime)}
-                </Text>
-              </View>
-              <View style={styles.playerSummaryCard}>
-                <Text style={styles.overallLabel}>PEMAIN 2</Text>
-                <Text style={styles.playerSummaryTime}>
-                  {formatTime(player2TotalTime)}
-                </Text>
-              </View>
-            </View>
-          ) : (
-            <View style={styles.overallCard}>
-              <Text style={styles.overallLabel}>TOTAL SEMUA SOAL</Text>
-              <Text style={styles.overallValue}>{formatTime(player1TotalTime)}</Text>
-              <Text style={styles.overallMeta}>
-                {results.length} soal • 1 PLAYER
-              </Text>
-            </View>
-          )}
+          <View style={styles.overallCard}>
+            <Text style={styles.overallLabel}>TOTAL SEMUA SOAL</Text>
+            <Text style={styles.overallValue}>{formatTime(player1TotalTime)}</Text>
+            <Text style={styles.overallMeta}>{results.length} soal</Text>
+          </View>
 
           <View style={styles.textCard}>
             <Text style={styles.cardTitle}>Waktu Tiap Soal</Text>
@@ -101,20 +85,9 @@ export default function DataAnalisaPage() {
               results.map((result) => (
                 <View key={result.step} style={styles.resultRow}>
                   <Text style={styles.resultLabel}>Soal {result.step}</Text>
-                  {result.mode === "double" ? (
-                    <View style={styles.playerTimes}>
-                      <Text style={styles.resultTime}>
-                        P1 {formatTime(result.player1Time)}
-                      </Text>
-                      <Text style={styles.resultTime}>
-                        P2 {formatTime(result.player2Time)}
-                      </Text>
-                    </View>
-                  ) : (
-                    <Text style={styles.resultTime}>
-                      {formatTime(result.player1Time)}
-                    </Text>
-                  )}
+                  <Text style={styles.resultTime}>
+                    {formatTime(result.player1Time)}
+                  </Text>
                 </View>
               ))
             )}
@@ -138,6 +111,24 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   backButtonText: { color: "#FFFFFF", fontWeight: "700" },
+  navigationRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 12,
+    marginBottom: 18,
+  },
+  homeButton: {
+    flex: 1,
+    backgroundColor: "#f45023",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  homeButtonText: { color: "#FFFFFF", fontWeight: "700" },
   scrollContent: { paddingBottom: 30 },
   title: {
     fontSize: 28,

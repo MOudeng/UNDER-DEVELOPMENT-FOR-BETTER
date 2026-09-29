@@ -1,31 +1,21 @@
-import { router, useLocalSearchParams } from "expo-router";
-import { ArrowLeft, ChevronRight } from "lucide-react-native";
-import React from "react";
+import { router } from "expo-router";
+import { ArrowLeft, ChevronRight, Home } from "lucide-react-native";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import PatternBackground from "../components/PatternBackground";
 import {
-  BorderRadius,
-  Color,
-  FontFamily,
-  Gradient,
-  Shadow,
+    BorderRadius,
+    Color,
+    FontFamily,
+    Gradient,
+    Shadow,
 } from "../styles/globalstyle";
 
-type Mode = "single" | "double";
-
-type SearchParams = {
-  mode?: Mode;
-};
-
 export default function GameModePage() {
-  const { mode } = useLocalSearchParams<SearchParams>();
-
   const startChoice = (choice: "test" | "practice") => {
     router.push({
       pathname: "/gameplay",
       params: {
-        mode: mode ?? "single",
         choice,
       },
     });
@@ -104,16 +94,30 @@ export default function GameModePage() {
               </Pressable>
             </View>
 
-            <Pressable
-              style={({ pressed }) => [
-                styles.backButton,
-                pressed && styles.backButtonPressed,
-              ]}
-              onPress={() => router.back()}
-            >
-              <ArrowLeft color={Color.colorWhite} size={22} strokeWidth={2.4} />
-              <Text style={styles.backButtonText}>Kembali</Text>
-            </Pressable>
+            <View style={styles.navigationRow}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.navigationButton,
+                  pressed && styles.buttonPressed,
+                ]}
+                onPress={() => router.back()}
+              >
+                <ArrowLeft color={Color.colorOrangered} size={20} strokeWidth={2.4} />
+                <Text style={styles.navigationButtonText}>Kembali</Text>
+              </Pressable>
+
+              <Pressable
+                style={({ pressed }) => [
+                  styles.navigationButton,
+                  styles.homeButton,
+                  pressed && styles.buttonPressed,
+                ]}
+                onPress={() => router.replace("/main/home")}
+              >
+                <Home color={Color.colorWhite} size={20} strokeWidth={2.4} />
+                <Text style={styles.homeButtonText}>Beranda</Text>
+              </Pressable>
+            </View>
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -158,8 +162,8 @@ const styles = StyleSheet.create({
   bodySection: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 60,
-    paddingBottom: 28,
+    paddingTop: 36,
+    paddingBottom: 16,
   },
   sectionLabel: {
     fontSize: 14,
@@ -171,7 +175,7 @@ const styles = StyleSheet.create({
   },
   cardList: {
     gap: 12,
-    marginBottom: 90,
+    marginBottom: 18,
   },
   optionCard: {
     backgroundColor: Color.colorWhite,
@@ -215,10 +219,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  backButton: {
+  navigationRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: "auto",
+    paddingTop: 12,
+  },
+  navigationButton: {
+    flex: 1,
     height: 58,
     borderRadius: 14,
-    backgroundColor: Gradient.cta[0],
+    backgroundColor: Color.colorWhite,
+    borderWidth: 1,
+    borderColor: "rgba(245, 80, 35, 0.18)",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -228,12 +241,21 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.14,
     shadowRadius: 16,
     elevation: Shadow.medium,
-    marginTop: "auto",
   },
-  backButtonPressed: {
+  homeButton: {
+    backgroundColor: Gradient.cta[0],
+    borderColor: Gradient.cta[0],
+  },
+  buttonPressed: {
     opacity: 0.92,
   },
-  backButtonText: {
+  navigationButtonText: {
+    color: Color.colorOrangered,
+    fontSize: 16,
+    lineHeight: 20,
+    fontFamily: FontFamily.interSemiBold,
+  },
+  homeButtonText: {
     color: Color.colorWhite,
     fontSize: 16,
     lineHeight: 20,
