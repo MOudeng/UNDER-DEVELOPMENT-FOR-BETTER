@@ -1,12 +1,12 @@
 import React from "react";
 import {
-  GestureResponderEvent,
-  StyleProp,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  ViewStyle,
+    GestureResponderEvent,
+    StyleProp,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+    ViewStyle,
 } from "react-native";
 import { FontFamily } from "../styles/globalstyle";
 
@@ -40,10 +40,19 @@ export default function StatCard({
           {icon}
         </View>
 
-        <Text style={styles.label}>{label}</Text>
+        <Text style={styles.label} numberOfLines={2}>
+          {label}
+        </Text>
       </View>
 
-      <Text style={styles.value}>{value}</Text>
+      <Text
+        style={styles.value}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.65}
+      >
+        {value}
+      </Text>
     </Container>
   );
 }
@@ -69,6 +78,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   label: {
+    flex: 1,
+    flexShrink: 1,
     fontSize: 11,
     fontFamily: FontFamily.interSemiBold,
     color: "#999",
@@ -77,8 +88,10 @@ const styles = StyleSheet.create({
   value: {
     marginTop: 12,
     textAlign: "center",
-    fontSize: 36,
+    fontSize: 32,
+    lineHeight: 40,
     fontFamily: FontFamily.interBold,
     color: "#333",
+    flexShrink: 1,
   },
 });

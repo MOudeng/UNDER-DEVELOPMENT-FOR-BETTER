@@ -1,17 +1,27 @@
 import { router } from "expo-router";
 import { ArrowLeft, ChevronRight, Home } from "lucide-react-native";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import PatternBackground from "../components/PatternBackground";
 import {
-    BorderRadius,
-    Color,
-    FontFamily,
-    Gradient,
-    Shadow,
+  BorderRadius,
+  Color,
+  FontFamily,
+  Gradient,
+  Shadow,
 } from "../styles/globalstyle";
 
 export default function GameModePage() {
+  const { height } = useWindowDimensions();
+  const isLandscape = height < 500;
+
   const startChoice = (choice: "test" | "practice") => {
     router.push({
       pathname: "/gameplay",
@@ -28,7 +38,12 @@ export default function GameModePage() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.heroSection}>
+          <View
+            style={[
+              styles.heroSection,
+              isLandscape && styles.heroSectionLandscape,
+            ]}
+          >
             <PatternBackground
               position="topRight"
               opacity={0.22}
@@ -40,7 +55,12 @@ export default function GameModePage() {
             </View>
           </View>
 
-          <View style={styles.bodySection}>
+          <View
+            style={[
+              styles.bodySection,
+              isLandscape && styles.bodySectionLandscape,
+            ]}
+          >
             <Text style={styles.sectionLabel}>PILIH MODE PERMAINAN</Text>
 
             <View style={styles.cardList}>
@@ -135,7 +155,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    flex: 1,
   },
   heroSection: {
     minHeight: 230,
@@ -148,22 +167,31 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     paddingBottom: 28,
   },
+  heroSectionLandscape: {
+    minHeight: 140,
+    paddingTop: 16,
+    paddingBottom: 18,
+  },
   heroContent: {
     zIndex: 1,
     gap: 8,
   },
   heroTitle: {
     color: Color.colorWhite,
-    fontSize: 52,
+    fontSize: 48,
     lineHeight: 48,
     fontFamily: FontFamily.interExtraBold,
     letterSpacing: -1,
   },
   bodySection: {
-    flex: 1,
     paddingHorizontal: 24,
     paddingTop: 36,
     paddingBottom: 16,
+  },
+  bodySectionLandscape: {
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 18,
   },
   sectionLabel: {
     fontSize: 14,
@@ -222,8 +250,8 @@ const styles = StyleSheet.create({
   navigationRow: {
     flexDirection: "row",
     gap: 10,
-    marginTop: "auto",
-    paddingTop: 12,
+    marginTop: 12,
+    paddingTop: 0,
   },
   navigationButton: {
     flex: 1,

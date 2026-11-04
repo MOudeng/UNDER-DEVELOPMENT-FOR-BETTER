@@ -1,3 +1,4 @@
+import { STEP_ASSETS } from "../data/levels";
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { ArrowLeft, ArrowRight, Play } from "lucide-react-native";
@@ -20,6 +21,7 @@ import {
   SessionManager,
   TimerService,
 } from "../services";
+import { GUEST_STATISTICS_USER_ID } from "../services/HistoryManagementService";
 import { Color, FontFamily, Gradient, Shadow } from "../styles/globalstyle";
 import { saveLevelPerformance } from "../utils/performanceStorage";
 
@@ -40,57 +42,6 @@ type StepResult = {
 
 const TOTAL_STEPS = 8;
 
-const STEP_ASSETS = [
-  [
-    require("../../assets/E01.svg"),
-    require("../../assets/E02.svg"),
-    require("../../assets/E03.svg"),
-    require("../../assets/E04.svg"),
-  ],
-  [
-    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 2a.png"),
-    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 2b.png"),
-    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 2c.png"),
-    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 2d.png"),
-  ],
-  [
-    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 3a.png"),
-    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 3b.png"),
-    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 3c.png"),
-    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 3d.png"),
-  ],
-  [
-    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 4a.png"),
-    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 4b.png"),
-    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 4c.png"),
-    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 4d.png"),
-  ],
-  [
-    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 5a.png"),
-    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 5b.png"),
-    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 5c.png"),
-    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 5d.png"),
-  ],
-  [
-    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 6a.png"),
-    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 6b.png"),
-    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 6c.png"),
-    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 6d.png"),
-  ],
-  [
-    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 7a.png"),
-    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 7b.png"),
-    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 7c.png"),
-    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 7d.png"),
-  ],
-  [
-    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 8a.png"),
-    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 8b.png"),
-    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 8c.png"),
-    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 8d.png"),
-  ],
-] as const;
-
 const randomizeStepChoices = () =>
   STEP_ASSETS.map(
     (stepAssets) => stepAssets[Math.floor(Math.random() * stepAssets.length)],
@@ -103,7 +54,8 @@ export default function GameplayPage() {
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [currentStep, setCurrentStep] = useState(1);
-  const currentLevel = LevelManagementService.getLevelById(currentStep);
+  const currentLevelId = ((currentStep - 1) % TOTAL_STEPS) + 1;
+  const currentLevel = LevelManagementService.getLevelById(currentLevelId);
   const timeLimit = currentLevel?.timeLimit || 60;
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const elapsedSecondsRef = useRef(0);
@@ -113,8 +65,8 @@ export default function GameplayPage() {
   const savedResults = useRef(new Set<number>());
 
   const stepChoices = useMemo(() => randomizeStepChoices(), []);
-  const currentImage = stepChoices[currentStep - 1];
-  const isLastStep = currentStep === TOTAL_STEPS;
+  const currentImage = stepChoices[(currentStep - 1) % TOTAL_STEPS];
+  const isLastStep = choice === "test" && currentStep === TOTAL_STEPS;
   const choiceLabel = choice === "test" ? "TEST" : "PRACTICE / SIMULASI";
   const isLandscape = width > height;
   const landscapeBodyWidth = Math.min(320, Math.max(200, width * 0.28));
@@ -130,56 +82,75 @@ export default function GameplayPage() {
   }, []);
 
   const persistCurrentStep = useCallback(async (timeSpent: number) => {
-    if (!user.id || savedSteps.current.has(currentStep)) {
+    if (savedSteps.current.has(currentStep)) {
       return;
     }
 
     savedSteps.current.add(currentStep);
+    const statisticsUserId = user.id ?? GUEST_STATISTICS_USER_ID;
 
     const scoringResult = ScoringEngine.createLevelCompletion({
-      levelId: currentStep,
-      levelTitle: currentLevel?.title || `Level ${currentStep}`,
+      levelId: currentLevelId,
+      levelTitle: currentLevel?.title || `Level ${currentLevelId}`,
       timeSpent,
       timeLimit,
       patternsCompleted: 1,
-      userId: user.id,
+      userId: statisticsUserId,
     });
 
     await HistoryManagementService.savePerformance(
-      user.id,
+      statisticsUserId,
       scoringResult.gamePerformance,
     );
-    await HistoryManagementService.addPerformanceToSession(
-      user.id,
-      scoringResult.gamePerformance,
-    );
-
-    if (choice === "test") {
-      await saveLevelPerformance(
+    if (user.id) {
+      await HistoryManagementService.addPerformanceToSession(
         user.id,
-        user.name,
-        scoringResult.levelPerformance,
+        scoringResult.gamePerformance,
       );
-      await LevelManagementService.markLevelCompleted(currentStep);
     }
 
-    await SessionManager.logActivity(user.id, "level_complete", "gameplay", {
-      levelId: currentStep,
-      score: scoringResult.score,
-      timeSpent,
-      choice,
-      mode: "single",
-    });
+    if (choice === "test") {
+      if (user.id) {
+        await saveLevelPerformance(
+          user.id,
+          user.name,
+          scoringResult.levelPerformance,
+        );
+      }
+      await LevelManagementService.markLevelCompleted(currentLevelId);
+    }
+
+    if (user.id) {
+      await SessionManager.logActivity(user.id, "level_complete", "gameplay", {
+        levelId: currentStep,
+        score: scoringResult.score,
+        timeSpent,
+        choice,
+        mode: "single",
+      });
+    }
   }, [
     choice,
     currentLevel?.title,
+    currentLevelId,
     currentStep,
     timeLimit,
     user.id,
     user.name,
   ]);
 
-  const finishGame = useCallback((finalResults: StepResult[]) => {
+  const finishGame = useCallback(async (finalResults: StepResult[]) => {
+    if (choice === "test") {
+      const totalTimeSeconds = finalResults.reduce(
+        (total, result) => total + result.player1Time,
+        0,
+      );
+      await HistoryManagementService.saveCompletedTestSession(
+        user.id ?? GUEST_STATISTICS_USER_ID,
+        totalTimeSeconds,
+      );
+    }
+
     if (user.id) {
       HistoryManagementService.endSession(user.id);
       SessionManager.logActivity(user.id, "game_complete", "gameplay", {
@@ -244,17 +215,40 @@ export default function GameplayPage() {
     };
 
     saveResult(result);
-    await persistCurrentStep(timeSpent);
 
     if (isLastStep) {
-      finishGame([...results, result]);
+      await persistCurrentStep(timeSpent);
+      await finishGame([...results, result]);
       return;
     }
 
     elapsedSecondsRef.current = 0;
     setElapsedSeconds(0);
     setCurrentStep((step) => step + 1);
-    setPhase("idle");
+    isAdvancingRef.current = false;
+    setPhase("running");
+    await persistCurrentStep(timeSpent);
+  };
+
+  const handleFinishPractice = async () => {
+    if (choice !== "practice" || phase !== "running" || isAdvancingRef.current) {
+      return;
+    }
+
+    isAdvancingRef.current = true;
+    setPhase("ready");
+
+    const timeSpent = elapsedSecondsRef.current;
+    const result: StepResult = {
+      step: currentStep,
+      player1Time: timeSpent,
+      player2Time: 0,
+      mode: "single",
+    };
+
+    saveResult(result);
+    await persistCurrentStep(timeSpent);
+    await finishGame([...results, result]);
   };
 
   return (
@@ -357,24 +351,61 @@ export default function GameplayPage() {
                 </Pressable>
               </View>
             ) : phase === "running" ? (
-              <View style={styles.actionGroup}>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.primaryWideButton,
-                    pressed && styles.buttonPressed,
-                  ]}
-                  onPress={handleNextStep}
-                >
-                  <View style={styles.actionInner}>
-                    <Text style={styles.actionLabelInside}>Next</Text>
-                    <ArrowRight
-                      color={Color.colorWhite}
-                      size={22}
-                      strokeWidth={2.5}
-                    />
-                  </View>
-                </Pressable>
-              </View>
+              choice === "practice" ? (
+                <View style={styles.practiceActionRow}>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.primaryWideButton,
+                      styles.practiceActionButton,
+                      pressed && styles.buttonPressed,
+                    ]}
+                    onPress={handleNextStep}
+                  >
+                    <View style={styles.actionInner}>
+                      <Text style={styles.practiceActionLabel}>Next</Text>
+                      <ArrowRight
+                        color={Color.colorWhite}
+                        size={20}
+                        strokeWidth={2.5}
+                      />
+                    </View>
+                  </Pressable>
+
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.primaryWideButton,
+                      styles.practiceActionButton,
+                      pressed && styles.buttonPressed,
+                    ]}
+                    onPress={handleFinishPractice}
+                  >
+                    <View style={styles.actionInner}>
+                      <Text style={styles.practiceActionLabel}>Selesai</Text>
+                    </View>
+                  </Pressable>
+                </View>
+              ) : (
+                <View style={styles.actionGroup}>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.primaryWideButton,
+                      pressed && styles.buttonPressed,
+                    ]}
+                    onPress={handleNextStep}
+                  >
+                    <View style={styles.actionInner}>
+                      <Text style={styles.actionLabelInside}>
+                        {isLastStep ? "Selesai" : "Next"}
+                      </Text>
+                      <ArrowRight
+                        color={Color.colorWhite}
+                        size={22}
+                        strokeWidth={2.5}
+                      />
+                    </View>
+                  </Pressable>
+                </View>
+              )
             ) : null}
           </View>
         </ScrollView>
@@ -539,6 +570,25 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 12,
     marginTop: 10,
+  },
+  practiceActionRow: {
+    width: "100%",
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 10,
+    paddingHorizontal: 10,
+  },
+  practiceActionButton: {
+    flex: 1,
+    minWidth: 0,
+    paddingHorizontal: 8,
+  },
+  practiceActionLabel: {
+    color: Color.colorWhite,
+    fontFamily: FontFamily.interSemiBold,
+    fontSize: 15,
+    lineHeight: 20,
+    marginRight: 6,
   },
   primaryCircleButton: {
     width: 75,

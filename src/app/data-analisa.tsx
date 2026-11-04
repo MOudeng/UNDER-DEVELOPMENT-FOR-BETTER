@@ -48,14 +48,17 @@ export default function DataAnalisaPage() {
     (total, result) => total + result.player1Time,
     0,
   );
+  const fastestTime = results.length > 0
+    ? Math.min(...results.map((result) => result.player1Time))
+    : null;
+  const averageTime = results.length > 0
+    ? player1TotalTime / results.length
+    : null;
 
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.navigationRow}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <Text style={styles.backButtonText}>Kembali</Text>
-          </TouchableOpacity>
           <TouchableOpacity
             style={styles.homeButton}
             onPress={() => router.replace("/main/home")}
@@ -75,6 +78,21 @@ export default function DataAnalisaPage() {
             <Text style={styles.overallLabel}>TOTAL SEMUA SOAL</Text>
             <Text style={styles.overallValue}>{formatTime(player1TotalTime)}</Text>
             <Text style={styles.overallMeta}>{results.length} soal</Text>
+          </View>
+
+          <View style={styles.timeSummaryRow}>
+            <View style={styles.timeSummaryCard}>
+              <Text style={styles.timeSummaryLabel}>WAKTU TERCEPAT</Text>
+              <Text style={styles.timeSummaryValue}>
+                {fastestTime === null ? "--:--" : formatTime(fastestTime)}
+              </Text>
+            </View>
+            <View style={styles.timeSummaryCard}>
+              <Text style={styles.timeSummaryLabel}>WAKTU RATA-RATA</Text>
+              <Text style={styles.timeSummaryValue}>
+                {averageTime === null ? "--:--" : formatTime(averageTime)}
+              </Text>
+            </View>
           </View>
 
           <View style={styles.textCard}>
@@ -101,24 +119,14 @@ export default function DataAnalisaPage() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f6f6f6" },
   safeArea: { flex: 1, paddingHorizontal: 20 },
-  backButton: {
-    alignSelf: "flex-start",
-    backgroundColor: "#f45023",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
-    marginTop: 12,
-    marginBottom: 18,
-  },
-  backButtonText: { color: "#FFFFFF", fontWeight: "700" },
   navigationRow: {
     flexDirection: "row",
-    gap: 10,
     marginTop: 12,
     marginBottom: 18,
   },
   homeButton: {
-    flex: 1,
+    alignSelf: "stretch",
+    width: "100%",
     backgroundColor: "#f45023",
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -160,6 +168,32 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   overallMeta: { color: "rgba(255,255,255,0.85)", fontSize: 12 },
+  timeSummaryRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 14,
+  },
+  timeSummaryCard: {
+    flex: 1,
+    minWidth: 0,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "rgba(231, 189, 183, 0.85)",
+  },
+  timeSummaryLabel: {
+    color: "#8f7772",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  timeSummaryValue: {
+    color: "#f45023",
+    fontSize: 24,
+    lineHeight: 32,
+    fontWeight: "900",
+    marginTop: 6,
+  },
   playerSummaryRow: {
     flexDirection: "row",
     gap: 12,

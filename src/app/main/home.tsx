@@ -6,12 +6,14 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import StatCard from "../../components/StatCard";
 import { useUser } from "../../context/UserContext";
 import { HistoryManagementService } from "../../services";
+import { GUEST_STATISTICS_USER_ID } from "../../services/HistoryManagementService";
 
 const formatDuration = (milliseconds: number) => {
   const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000));
@@ -25,35 +27,42 @@ const formatDuration = (milliseconds: number) => {
 
 export default function Home() {
   const { user } = useUser();
-  const [fastestTime, setFastestTime] = useState(0);
-  const [averageTime, setAverageTime] = useState(0);
+  const { width } = useWindowDimensions();
+  const [fastestTime, setFastestTime] = useState<number | null>(null);
+  const [averageTime, setAverageTime] = useState<number | null>(null);
 
   const userName = user.name || "User";
 
+  const handleStartGame = () => {
+    router.push("/gamemode");
+  };
+
   useFocusEffect(
     useCallback(() => {
-      const loadStats = async () => {
-        if (!user.id) {
-          setFastestTime(0);
-          setAverageTime(0);
-          return;
-        }
+      let isActive = true;
 
+      const loadStats = async () => {
         const historyStats = await HistoryManagementService.getStatistics(
-          user.id,
+          user.id ?? GUEST_STATISTICS_USER_ID,
         );
 
-        setFastestTime(historyStats.bestTime);
-        setAverageTime(historyStats.averageTime);
+        if (isActive) {
+          setFastestTime(
+            historyStats.timedGames > 0 ? historyStats.bestTime : null,
+          );
+          setAverageTime(
+            historyStats.timedGames > 0 ? historyStats.averageTime : null,
+          );
+        }
       };
 
       loadStats();
+
+      return () => {
+        isActive = false;
+      };
     }, [user.id]),
   );
-
-  const handleStartGame = () => {
-    router.push("/mulai-main");
-  };
 
   return (
     <View style={styles.container}>
@@ -68,7 +77,12 @@ export default function Home() {
           showsVerticalScrollIndicator={false}
         >
           {/* Time Indicators Row */}
-          <View style={styles.scoreRow}>
+          <View
+            style={[
+              styles.scoreRow,
+              width < 600 && styles.scoreRowStacked,
+            ]}
+          >
             <StatCard
               style={styles.scoreCard}
               icon={
@@ -79,7 +93,7 @@ export default function Home() {
                 />
               }
               label="WAKTU TERCEPAT"
-              value={formatDuration(fastestTime)}
+              value={fastestTime === null ? "--:--" : formatDuration(fastestTime)}
               accentColor="#f45023"
             />
 
@@ -94,12 +108,11 @@ export default function Home() {
                 />
               }
               label="WAKTU RATA-RATA"
-              value={formatDuration(averageTime)}
+              value={averageTime === null ? "--:--" : formatDuration(averageTime)}
               accentColor="#2563eb"
             />
           </View>
 
-          {/* Start Game Button */}
           <TouchableOpacity
             style={styles.startButton}
             onPress={handleStartGame}
@@ -108,8 +121,6 @@ export default function Home() {
             <Text style={styles.startButtonText}>Mulai Main</Text>
           </TouchableOpacity>
 
-          {/* Extra padding at bottom */}
-          <View style={{ height: 20 }} />
         </ScrollView>
       </SafeAreaView>
     </View>
@@ -148,6 +159,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 12,
     marginBottom: 20,
+  },
+  scoreRowStacked: {
+    flexDirection: "column",
   },
   scoreCard: {
     flex: 1,

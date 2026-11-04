@@ -6,6 +6,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GamePerformance } from '../types/gamePerformance';
 
+export const GUEST_STATISTICS_USER_ID = '@guest_statistics';
+
 export interface HistoryFilter {
   userId?: string;
   levelNumber?: number;
@@ -17,6 +19,7 @@ export interface HistoryFilter {
 export interface HistoryStatistics {
   totalGames: number;
   completedGames: number;
+  timedGames: number;
   averageTime: number;
   bestTime: number;
   worstTime: number;
@@ -25,6 +28,12 @@ export interface HistoryStatistics {
   completionRate: number;
   levelDistribution: { [key: number]: number };
   performanceTrend: 'improving' | 'declining' | 'stable';
+}
+
+interface CompletedTestSession {
+  id: string;
+  totalTimeSeconds: number;
+  completedAt: number;
 }
 
 export interface GameSession {
@@ -39,14 +48,19 @@ export interface GameSession {
 
 class HistoryManagementService {
   private readonly HISTORY_KEY_PREFIX = '@game_performance_';
+  private readonly TEST_SESSIONS_KEY_PREFIX = '@completed_test_sessions_';
   private readonly SESSION_KEY_PREFIX = '@game_session_';
   private readonly MAX_HISTORY_ITEMS = 1000; // Limit history to prevent storage overflow
+  private readonly historyWriteQueues = new Map<string, Promise<void>>();
 
   /**
    * Save game performance to history
    */
   async savePerformance(userId: string, performance: GamePerformance): Promise<boolean> {
-    try {
+    const previousWrite = this.historyWriteQueues.get(userId) ?? Promise.resolve();
+    let saved = false;
+
+    const currentWrite = previousWrite.catch(() => undefined).then(async () => {
       const historyKey = this.HISTORY_KEY_PREFIX + userId;
       const historyJson = await AsyncStorage.getItem(historyKey);
       const history: GamePerformance[] = historyJson ? JSON.parse(historyJson) : [];
@@ -60,10 +74,83 @@ class HistoryManagementService {
       }
 
       await AsyncStorage.setItem(historyKey, JSON.stringify(history));
-      return true;
+      saved = true;
+    });
+
+    this.historyWriteQueues.set(userId, currentWrite);
+
+    try {
+      await currentWrite;
+      return saved;
     } catch (error) {
       console.error('Save performance error:', error);
       return false;
+    } finally {
+      if (this.historyWriteQueues.get(userId) === currentWrite) {
+        this.historyWriteQueues.delete(userId);
+      }
+    }
+  }
+
+  async saveCompletedTestSession(
+    userId: string,
+    totalTimeSeconds: number,
+  ): Promise<boolean> {
+    const previousWrite = this.historyWriteQueues.get(userId) ?? Promise.resolve();
+    let saved = false;
+
+    const currentWrite = previousWrite.catch(() => undefined).then(async () => {
+      const key = this.TEST_SESSIONS_KEY_PREFIX + userId;
+      const storedSessions = await AsyncStorage.getItem(key);
+      const sessions: CompletedTestSession[] = storedSessions
+        ? JSON.parse(storedSessions)
+        : [];
+
+      sessions.push({
+        id: `test_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+        totalTimeSeconds: Math.max(0, totalTimeSeconds),
+        completedAt: Date.now(),
+      });
+
+      if (sessions.length > this.MAX_HISTORY_ITEMS) {
+        sessions.shift();
+      }
+
+      await AsyncStorage.setItem(key, JSON.stringify(sessions));
+      saved = true;
+    });
+
+    this.historyWriteQueues.set(userId, currentWrite);
+
+    try {
+      await currentWrite;
+      return saved;
+    } catch (error) {
+      console.error('Save completed test session error:', error);
+      return false;
+    } finally {
+      if (this.historyWriteQueues.get(userId) === currentWrite) {
+        this.historyWriteQueues.delete(userId);
+      }
+    }
+  }
+
+  private async getCompletedTestSessions(
+    userId: string,
+  ): Promise<CompletedTestSession[]> {
+    try {
+      const storedSessions = await AsyncStorage.getItem(
+        this.TEST_SESSIONS_KEY_PREFIX + userId,
+      );
+      if (!storedSessions) {
+        return [];
+      }
+
+      const parsed: unknown = JSON.parse(storedSessions);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+      console.error('Get completed test sessions error:', error);
+      return [];
     }
   }
 
@@ -121,16 +208,19 @@ class HistoryManagementService {
    */
   async getStatistics(userId: string, filter?: HistoryFilter): Promise<HistoryStatistics> {
     try {
-      const history = await this.getHistory(userId, filter);
+      const [history, testSessions] = await Promise.all([
+        this.getHistory(userId, filter),
+        this.getCompletedTestSessions(userId),
+      ]);
 
-      if (history.length === 0) {
+      if (history.length === 0 && testSessions.length === 0) {
         return this.getEmptyStatistics();
       }
 
       const completedGames = history.filter(h => h.completed).length;
-      const times = history
-        .filter(h => h.completed && h.completionTime)
-        .map(h => h.completionTime!);
+      const times = testSessions
+        .filter(session => Number.isFinite(session.totalTimeSeconds) && session.totalTimeSeconds >= 0)
+        .map(session => session.totalTimeSeconds * 1000);
       
       const scores = history
         .filter(h => h.score !== undefined)
@@ -154,6 +244,7 @@ class HistoryManagementService {
       return {
         totalGames: history.length,
         completedGames,
+        timedGames: times.length,
         averageTime: Math.round(averageTime),
         bestTime: times.length > 0 ? Math.min(...times) : 0,
         worstTime: times.length > 0 ? Math.max(...times) : 0,
@@ -442,6 +533,7 @@ class HistoryManagementService {
     return {
       totalGames: 0,
       completedGames: 0,
+      timedGames: 0,
       averageTime: 0,
       bestTime: 0,
       worstTime: 0,

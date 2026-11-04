@@ -418,3 +418,53 @@ export const LEVELS: Level[] = [
     unlocked: false
   }
 ];
+export const STEP_ASSETS = [
+  [
+    require("../../assets/level1-pattern1.png"),
+    require("../../assets/level1-pattern2.png"),
+    require("../../assets/level1-pattern3.png"),
+    require("../../assets/level1-pattern4.png"),
+  ],
+  [
+    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 2a.png"),
+    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 2b.png"),
+    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 2c.png"),
+    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 2d.png"),
+  ],
+  [
+    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 3a.png"),
+    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 3b.png"),
+    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 3c.png"),
+    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 3d.png"),
+  ],
+  [
+    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 4a.png"),
+    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 4b.png"),
+    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 4c.png"),
+    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 4d.png"),
+  ],
+  [
+    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 5a.png"),
+    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 5b.png"),
+    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 5c.png"),
+    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 5d.png"),
+  ],
+  [
+    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 6a.png"),
+    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 6b.png"),
+    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 6c.png"),
+    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 6d.png"),
+  ],
+  [
+    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 7a.png"),
+    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 7b.png"),
+    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 7c.png"),
+    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 7d.png"),
+  ],
+  [
+    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 8a.png"),
+    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 8b.png"),
+    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 8c.png"),
+    require("../assets/TEST_RANDOM_OTAK_ATIK/Lvl 8d.png"),
+  ],
+] as const;
