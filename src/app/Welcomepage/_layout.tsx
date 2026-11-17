@@ -1,5 +1,5 @@
-import { Redirect } from "expo-router";
+import { Stack } from "expo-router";
 
 export default function WelcomepageLayout() {
-  return <Redirect href="/main/home" />;
+  return <Stack screenOptions={{ headerShown: false, animation: "fade" }} />;
 }

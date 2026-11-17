@@ -54,9 +54,9 @@ export default function CodeVerification() {
     setPopup({ ...next, visible: true });
   const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(""));
   const [isLoading, setIsLoading] = useState(false);
-  const inputRefs = useRef<(TextInput | null)[]>([]);
+  const inputRefs = useRef<(React.ComponentRef<typeof TextInput> | null)[]>([]);
 
-  const setInputRef = useCallback((index: number, ref: TextInput | null) => {
+  const setInputRef = useCallback((index: number, ref: React.ComponentRef<typeof TextInput> | null) => {
     if (ref) {
       inputRefs.current[index] = ref;
     }

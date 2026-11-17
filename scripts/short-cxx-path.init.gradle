@@ -1,0 +1,18 @@
+// Windows only: since SDK 58, native object paths exceed the 260 character limit
+// and ninja fails. Moves native output to a short folder and lets CMake shorten
+// what is still too long with a hash.
+// Use: ./gradlew assembleRelease --init-script ../scripts/short-cxx-path.init.gradle
+allprojects { project ->
+  ["com.android.application", "com.android.library"].each { pluginId ->
+    project.plugins.withId(pluginId) {
+      def android = project.extensions.getByName("android")
+      android.externalNativeBuild.cmake.buildStagingDirectory = new File("D:/bx/${project.name}")
+      // Three compilers at once: more runs clang out of memory on 8 GB of RAM.
+      android.defaultConfig.externalNativeBuild.cmake.arguments(
+        "-DCMAKE_OBJECT_PATH_MAX=240",
+        "-DCMAKE_JOB_POOLS=compile=3",
+        "-DCMAKE_JOB_POOL_COMPILE=compile",
+      )
+    }
+  }
+}

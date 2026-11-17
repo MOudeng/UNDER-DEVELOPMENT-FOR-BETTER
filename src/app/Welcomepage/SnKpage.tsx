@@ -1,9 +1,10 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import * as React from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import PatternBackground from "../../components/PatternBackground";
+import { useProfiles } from "../../context/ProfileContext";
 import {
   BorderRadius,
   Color,
@@ -14,9 +15,18 @@ import {
 
 const TermsAndAgreements = () => {
   const router = useRouter();
+  const { acceptTerms } = useProfiles();
 
-  const handlePress = () => {
-    router.push("/Welcomepage/PetunjukPenggunaanPage");
+  const handlePress = async () => {
+    try {
+      await acceptTerms();
+      router.push("/Welcomepage/PetunjukPenggunaanPage");
+    } catch (error) {
+      Alert.alert(
+        "Persetujuan gagal disimpan",
+        error instanceof Error ? error.message : "Silakan coba lagi.",
+      );
+    }
   };
   return (
     <View style={styles.container}>

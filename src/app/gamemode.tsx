@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import PatternBackground from "../components/PatternBackground";
+import { useProfiles } from "../context/ProfileContext";
 import {
   BorderRadius,
   Color,
@@ -21,6 +22,7 @@ import {
 export default function GameModePage() {
   const { height } = useWindowDimensions();
   const isLandscape = height < 500;
+  const { isGuest } = useProfiles();
 
   const startChoice = (choice: "test" | "practice") => {
     router.push({
@@ -62,6 +64,11 @@ export default function GameModePage() {
             ]}
           >
             <Text style={styles.sectionLabel}>PILIH MODE PERMAINAN</Text>
+            {isGuest ? (
+              <Text style={styles.guestNote}>
+                Mode Tamu: hasil kedua mode tidak disimpan.
+              </Text>
+            ) : null}
 
             <View style={styles.cardList}>
               <Pressable
@@ -198,6 +205,13 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     letterSpacing: 0.8,
     color: "#9b8b87",
+    fontFamily: FontFamily.interSemiBold,
+    marginBottom: 10,
+  },
+  guestNote: {
+    color: "#5d3f3c",
+    fontSize: 14,
+    lineHeight: 20,
     fontFamily: FontFamily.interSemiBold,
     marginBottom: 10,
   },

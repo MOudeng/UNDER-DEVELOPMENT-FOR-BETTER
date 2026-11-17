@@ -1,382 +1,141 @@
-import { useRouter } from "expo-router";
+import { router } from "expo-router";
 import {
-  AlertCircle,
-  BarChart3,
+  BookOpen,
   ChevronRight,
-  History,
-  Lock,
-  LogOut,
-  User,
-  UserCheck,
-  X,
+  Gamepad2,
+  UserRound,
 } from "lucide-react-native";
 import {
   Alert,
-  Image,
-  SafeAreaView,
+  Pressable,
   ScrollView,
+  StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from "react-native";
-import { useUser } from "../../context/UserContext";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+import { useProfiles } from "../../context/ProfileContext";
 
 export default function AkunPage() {
-  const router = useRouter();
-  const { user, logout } = useUser();
-  const hasProfilePhoto = Boolean(user.profilePhoto?.trim());
+  const { activeProfile, enterGuestMode, error, isGuest } = useProfiles();
 
-  const handleDismissWarning = () => {
-    // Optional: dismiss warning
+  const playAsGuest = async () => {
+    try {
+      await enterGuestMode();
+      router.navigate("/main/home");
+    } catch (guestError) {
+      Alert.alert(
+        "Mode tamu gagal dibuka",
+        guestError instanceof Error ? guestError.message : "Silakan coba lagi.",
+      );
+    }
   };
 
-  const handleLogout = () => {
-    Alert.alert("Logout", "Apakah Anda yakin ingin keluar?", [
-      {
-        text: "Batal",
-        onPress: () => {},
-        style: "cancel",
-      },
-      {
-        text: "Keluar",
-        onPress: async () => {
-          await logout();
-          router.replace("/main/home");
-        },
-        style: "destructive",
-      },
-    ]);
-  };
+  const options = [
+    {
+      title: "Main sebagai Tamu",
+      description: isGuest
+        ? "Sedang aktif. Hasil permainan tidak disimpan."
+        : "Langsung bermain. Hasil permainan tidak disimpan.",
+      color: "#c2410c",
+      Icon: Gamepad2,
+      active: isGuest,
+      onPress: playAsGuest,
+    },
+    {
+      title: "Akun",
+      description: activeProfile
+        ? `Sedang aktif: ${activeProfile.displayName}. Ketuk untuk memilih atau mengubah profil.`
+        : "Pilih atau buat profil pemain untuk menyimpan hasil permainan.",
+      color: "#2563eb",
+      Icon: UserRound,
+      active: activeProfile !== null,
+      onPress: () => router.push("/profiles"),
+    },
+    {
+      title: "Petunjuk Penggunaan",
+      description: "Lihat cara bermain langkah demi langkah.",
+      color: "#6b5a57",
+      Icon: BookOpen,
+      active: false,
+      onPress: () =>
+        router.push({
+          pathname: "/Welcomepage/PetunjukPenggunaanPage",
+          params: { from: "akun" },
+        }),
+    },
+  ];
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#f5f5f5" }}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 20 }}
-      >
-        {/* HEADER PROFILE */}
-        <View
-          style={{
-            backgroundColor: "#FFFFFF",
-            padding: 16,
-            alignItems: "center",
-            marginBottom: 12,
-          }}
-        >
-          {/* Avatar Placeholder */}
-          <View
-            style={{
-              width: 100,
-              height: 100,
-              borderRadius: 50,
-              backgroundColor: "#E8E8E8",
-              justifyContent: "center",
-              alignItems: "center",
-              marginBottom: 16,
-              marginTop: 20,
-              overflow: "hidden",
-            }}
-          >
-            {hasProfilePhoto ? (
-              <Image
-                source={{ uri: user.profilePhoto! }}
-                style={{ width: "100%", height: "100%" }}
-                resizeMode="cover"
-              />
-            ) : (
-              <User color="#999" size={46} strokeWidth={2.3} />
-            )}
-          </View>
+    <View style={styles.container}>
+      <SafeAreaView style={styles.safeArea}>
+        <ScrollView contentContainerStyle={styles.content}>
+          <Text style={styles.title}>Akun</Text>
+          <Text style={styles.subtitle}>Pilih cara bermain.</Text>
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-          {/* Name & Email */}
-          <Text
-            style={{
-              fontSize: 18,
-              fontWeight: "700",
-              color: "#1a1a1a",
-              marginBottom: 4,
-            }}
-          >
-            {user.name}
-          </Text>
-          <Text
-            style={{
-              fontSize: 14,
-              color: "#666",
-              marginBottom: 12,
-            }}
-          >
-            {user.email || "belum@terverifikasi.com"}
-          </Text>
-
-          {/* Verification Status Badge */}
-          {!user.isVerified && (
-            <View
-              style={{
-                backgroundColor: "#FEE5E5",
-                borderRadius: 8,
-                paddingVertical: 8,
-                paddingHorizontal: 12,
-                flexDirection: "row",
-                alignItems: "center",
-                width: "100%",
-                justifyContent: "space-between",
-              }}
+          {options.map(({ title, description, color, Icon, active, onPress }) => (
+            <Pressable
+              key={title}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              style={({ pressed }) => [
+                styles.card,
+                active && styles.activeCard,
+                pressed && styles.pressedCard,
+              ]}
+              onPress={onPress}
             >
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  flex: 1,
-                }}
-              >
-                <AlertCircle color="#f45023" size={18} strokeWidth={2.5} />
-                <Text
-                  style={{
-                    marginLeft: 8,
-                    fontSize: 13,
-                    fontWeight: "600",
-                    color: "#f45023",
-                  }}
-                >
-                  Belum Terverifikasi
-                </Text>
+              <View style={[styles.iconWrap, { backgroundColor: `${color}1A` }]}>
+                <Icon color={color} size={26} />
               </View>
-              <TouchableOpacity onPress={handleDismissWarning}>
-                <X color="#f45023" size={18} strokeWidth={2.5} />
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {user.isVerified && (
-            <View
-              style={{
-                backgroundColor: "#E8F5E9",
-                borderRadius: 8,
-                paddingVertical: 8,
-                paddingHorizontal: 12,
-                flexDirection: "row",
-                alignItems: "center",
-                width: "100%",
-              }}
-            >
-              <AlertCircle color="#2E7D32" size={18} strokeWidth={2.5} />
-              <Text
-                style={{
-                  marginLeft: 8,
-                  fontSize: 13,
-                  fontWeight: "600",
-                  color: "#2E7D32",
-                }}
-              >
-                Terverifikasi
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* MENU ITEMS */}
-        {/* Verifikasi Akun / Tentang Saya */}
-        {!user.isVerified && (
-          <TouchableOpacity
-            onPress={() => router.push("/tentang-saya")}
-            style={{
-              backgroundColor: "#FFFFFF",
-              marginHorizontal: 12,
-              marginBottom: 12,
-              borderRadius: 12,
-              paddingVertical: 14,
-              paddingHorizontal: 16,
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                flex: 1,
-              }}
-            >
-              <UserCheck color="#f45023" size={22} strokeWidth={2.5} />
-              <Text
-                style={{
-                  marginLeft: 16,
-                  fontSize: 14,
-                  fontWeight: "600",
-                  color: "#1a1a1a",
-                  flex: 1,
-                }}
-              >
-                VERIFIKASI AKUN
-              </Text>
-            </View>
-            <ChevronRight color="#999" size={20} strokeWidth={2.5} />
-          </TouchableOpacity>
-        )}
-
-        {user.isVerified && (
-          <TouchableOpacity
-            onPress={() => router.push("/tentang-saya")}
-            style={{
-              backgroundColor: "#FFFFFF",
-              marginHorizontal: 12,
-              marginBottom: 12,
-              borderRadius: 12,
-              paddingVertical: 14,
-              paddingHorizontal: 16,
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                flex: 1,
-              }}
-            >
-              <UserCheck color="#f45023" size={22} strokeWidth={2.5} />
-              <Text
-                style={{
-                  marginLeft: 16,
-                  fontSize: 14,
-                  fontWeight: "600",
-                  color: "#1a1a1a",
-                  flex: 1,
-                }}
-              >
-                TENTANG SAYA
-              </Text>
-            </View>
-            <ChevronRight color="#999" size={20} strokeWidth={2.5} />
-          </TouchableOpacity>
-        )}
-
-        {/* Riwayat */}
-        <TouchableOpacity
-          onPress={() =>
-            user.isVerified
-              ? router.push("/riwayat")
-              : Alert.alert(
-                  "Info",
-                  "Selesaikan verifikasi akun terlebih dahulu",
-                )
-          }
-          style={{
-            backgroundColor: "#FFFFFF",
-            marginHorizontal: 12,
-            marginTop: 16,
-            marginBottom: 12,
-            borderRadius: 12,
-            paddingVertical: 14,
-            paddingHorizontal: 16,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              flex: 1,
-            }}
-          >
-            <History color="#f45023" size={22} strokeWidth={2.5} />
-            <Text
-              style={{
-                marginLeft: 16,
-                fontSize: 14,
-                fontWeight: "600",
-                color: "#1a1a1a",
-              }}
-            >
-              RIWAYAT
-            </Text>
-            {!user.isVerified && (
-              <Lock color="#f45023" size={18} strokeWidth={2.5} />
-            )}
-          </View>
-          <ChevronRight color="#999" size={20} strokeWidth={2.5} />
-        </TouchableOpacity>
-
-        {/* Data Analisa */}
-        <TouchableOpacity
-          onPress={() =>
-            user.isVerified
-              ? router.push("/data-analisa")
-              : Alert.alert(
-                  "Info",
-                  "Selesaikan verifikasi akun terlebih dahulu",
-                )
-          }
-          style={{
-            backgroundColor: "#FFFFFF",
-            marginHorizontal: 12,
-            marginBottom: 24,
-            borderRadius: 12,
-            paddingVertical: 14,
-            paddingHorizontal: 16,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              flex: 1,
-            }}
-          >
-            <BarChart3 color="#f45023" size={22} strokeWidth={2.5} />
-            <Text
-              style={{
-                marginLeft: 16,
-                fontSize: 14,
-                fontWeight: "600",
-                color: "#1a1a1a",
-              }}
-            >
-              DATA ANALISA
-            </Text>
-            {!user.isVerified && (
-              <Lock color="#f45023" size={18} strokeWidth={2.5} />
-            )}
-          </View>
-          <ChevronRight color="#999" size={20} strokeWidth={2.5} />
-        </TouchableOpacity>
-
-        {/* Logout Button */}
-        <TouchableOpacity
-          onPress={handleLogout}
-          style={{
-            backgroundColor: "#f45023",
-            marginHorizontal: 12,
-            marginBottom: 16,
-            borderRadius: 12,
-            paddingVertical: 14,
-            alignItems: "center",
-            flexDirection: "row",
-            justifyContent: "center",
-          }}
-        >
-          <LogOut color="#FFFFFF" size={20} strokeWidth={2.5} />
-          <Text
-            style={{
-              marginLeft: 8,
-              fontSize: 14,
-              fontWeight: "700",
-              color: "#FFFFFF",
-            }}
-          >
-            KELUAR
-          </Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </SafeAreaView>
+              <View style={styles.cardText}>
+                <Text style={styles.cardTitle}>{title}</Text>
+                <Text style={styles.cardDescription}>{description}</Text>
+              </View>
+              <ChevronRight color="#8f7b77" size={22} />
+            </Pressable>
+          ))}
+        </ScrollView>
+      </SafeAreaView>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: "#f6f6f6" },
+  safeArea: { flex: 1 },
+  content: { padding: 20, gap: 14 },
+  title: { color: "#f45023", fontSize: 30, fontWeight: "900" },
+  subtitle: { color: "#5d3f3c", fontSize: 14 },
+  errorText: {
+    color: "#b91c1c",
+    backgroundColor: "#fee2e2",
+    borderRadius: 10,
+    padding: 12,
+  },
+  card: {
+    minHeight: 88,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#ead8d4",
+    backgroundColor: "#FFFFFF",
+  },
+  activeCard: { borderColor: "#16a34a", borderWidth: 2 },
+  pressedCard: { opacity: 0.85 },
+  iconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cardText: { flex: 1, gap: 4 },
+  cardTitle: { color: "#4d3532", fontSize: 17, fontWeight: "800" },
+  cardDescription: { color: "#6b5a57", fontSize: 13, lineHeight: 18 },
+});

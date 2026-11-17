@@ -1,7 +1,8 @@
 import { router, useFocusEffect } from "expo-router";
-import { Clock } from "lucide-react-native";
+import { Clock, History, TrendingUp } from "lucide-react-native";
 import { useCallback, useState } from "react";
 import {
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,9 +12,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import StatCard from "../../components/StatCard";
-import { useUser } from "../../context/UserContext";
-import { HistoryManagementService } from "../../services";
-import { GUEST_STATISTICS_USER_ID } from "../../services/HistoryManagementService";
+import { useProfiles } from "../../context/ProfileContext";
+import LocalDatabaseService from "../../services/LocalDatabaseService";
 
 const formatDuration = (milliseconds: number) => {
   const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000));
@@ -26,15 +26,30 @@ const formatDuration = (milliseconds: number) => {
 };
 
 export default function Home() {
-  const { user } = useUser();
+  const { activeProfile, isGuest } = useProfiles();
   const { width } = useWindowDimensions();
   const [fastestTime, setFastestTime] = useState<number | null>(null);
   const [averageTime, setAverageTime] = useState<number | null>(null);
 
-  const userName = user.name || "User";
+  const userName = isGuest ? "Tamu" : activeProfile?.displayName || "Pemain";
 
   const handleStartGame = () => {
     router.push("/gamemode");
+  };
+
+  const openSavedResults = (path: "/perkembangan" | "/riwayat") => {
+    if (!isGuest) {
+      router.push(path);
+      return;
+    }
+    Alert.alert(
+      "Mode Tamu",
+      "Hasil mode tamu tidak disimpan. Masuk ke akun untuk menyimpan dan melihat hasil permainan.",
+      [
+        { text: "Nanti", style: "cancel" },
+        { text: "Ke Akun", onPress: () => router.navigate("/main/akun") },
+      ],
+    );
   };
 
   useFocusEffect(
@@ -42,17 +57,22 @@ export default function Home() {
       let isActive = true;
 
       const loadStats = async () => {
-        const historyStats = await HistoryManagementService.getStatistics(
-          user.id ?? GUEST_STATISTICS_USER_ID,
+        if (!activeProfile) {
+          if (isActive) {
+            setFastestTime(null);
+            setAverageTime(null);
+          }
+          return;
+        }
+
+        const historyStats = await LocalDatabaseService.getProfileStatistics(
+          activeProfile.id,
+          "test",
         );
 
         if (isActive) {
-          setFastestTime(
-            historyStats.timedGames > 0 ? historyStats.bestTime : null,
-          );
-          setAverageTime(
-            historyStats.timedGames > 0 ? historyStats.averageTime : null,
-          );
+          setFastestTime(historyStats.fastestDurationMs);
+          setAverageTime(historyStats.averageDurationMs);
         }
       };
 
@@ -61,7 +81,7 @@ export default function Home() {
       return () => {
         isActive = false;
       };
-    }, [user.id]),
+    }, [activeProfile]),
   );
 
   return (
@@ -70,6 +90,9 @@ export default function Home() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Hallo, {userName}</Text>
+          {isGuest ? (
+            <Text style={styles.guestNote}>Mode Tamu: hasil tidak disimpan</Text>
+          ) : null}
         </View>
 
         <ScrollView
@@ -92,7 +115,7 @@ export default function Home() {
                   strokeWidth={2.5}
                 />
               }
-              label="WAKTU TERCEPAT"
+              label="REKOR MODE TEST"
               value={fastestTime === null ? "--:--" : formatDuration(fastestTime)}
               accentColor="#f45023"
             />
@@ -107,7 +130,7 @@ export default function Home() {
                   fill="#FFFFFF"
                 />
               }
-              label="WAKTU RATA-RATA"
+              label="RATA-RATA MODE TEST"
               value={averageTime === null ? "--:--" : formatDuration(averageTime)}
               accentColor="#2563eb"
             />
@@ -120,6 +143,31 @@ export default function Home() {
           >
             <Text style={styles.startButtonText}>Mulai Main</Text>
           </TouchableOpacity>
+
+          <View style={styles.secondaryActions}>
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={() => openSavedResults("/perkembangan")}
+            >
+              <TrendingUp color="#f45023" size={20} />
+              <Text style={styles.secondaryButtonText}>Lihat Perkembangan</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={() => openSavedResults("/riwayat")}
+            >
+              <History color="#2563eb" size={20} />
+              <Text
+                style={[
+                  styles.secondaryButtonText,
+                  styles.historyButtonText,
+                ]}
+              >
+                Lihat Riwayat
+              </Text>
+            </TouchableOpacity>
+          </View>
 
         </ScrollView>
       </SafeAreaView>
@@ -148,6 +196,12 @@ const styles = StyleSheet.create({
     fontSize: 30,
     fontWeight: "900",
     color: "#f45023",
+  },
+  guestNote: {
+    flexShrink: 1,
+    color: "#5d3f3c",
+    fontSize: 13,
+    fontWeight: "700",
   },
   scrollContent: {
     flexGrow: 1,
@@ -235,5 +289,30 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#FFFFFF",
     letterSpacing: 0.5,
+  },
+  secondaryActions: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  secondaryButton: {
+    flex: 1,
+    minHeight: 62,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#ead8d4",
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    paddingHorizontal: 8,
+  },
+  secondaryButtonText: {
+    color: "#f45023",
+    fontSize: 12,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+  historyButtonText: {
+    color: "#2563eb",
   },
 });

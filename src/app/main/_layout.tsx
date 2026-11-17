@@ -1,6 +1,7 @@
 import { Tabs } from "expo-router";
+import { Home, UserRound } from "lucide-react-native";
 import React from "react";
-import { ColorValue, Text } from "react-native";
+import { ColorValue } from "react-native";
 
 export default function MainLayout() {
   return React.createElement(
@@ -30,13 +31,15 @@ export default function MainLayout() {
       options: {
         title: "Beranda",
         tabBarIcon: ({ color, size }: { color: ColorValue; size: number }) =>
-          React.createElement(Text, { style: { color, fontSize: size } }, "⌂"),
+          React.createElement(Home, { color: color as string, size }),
       },
     }),
     React.createElement(Tabs.Screen, {
       name: "akun",
       options: {
-        href: null,
+        title: "Akun",
+        tabBarIcon: ({ color, size }: { color: ColorValue; size: number }) =>
+          React.createElement(UserRound, { color: color as string, size }),
       },
     }),
   );

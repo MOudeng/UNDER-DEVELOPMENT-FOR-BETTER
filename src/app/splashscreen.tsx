@@ -5,8 +5,10 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useProfiles } from "../context/ProfileContext";
 
 export default function SplashScreen() {
+  const { activeProfile, isGuest, isLoading, termsAccepted } = useProfiles();
   const [fadeAnim] = useState(() => new Animated.Value(0));
   const [scaleAnim] = useState(() => new Animated.Value(0.8));
 
@@ -28,12 +30,15 @@ export default function SplashScreen() {
   }, [fadeAnim, scaleAnim]);
 
   useEffect(() => {
+    if (isLoading) return;
     const timer = setTimeout(() => {
-      router.replace("/main/home");
-    }, 2500);
+      if (!termsAccepted) router.replace("/Welcomepage/welcomepage");
+      else if (activeProfile || isGuest) router.replace("/main/home");
+      else router.replace("/main/akun");
+    }, 1800);
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [activeProfile, isGuest, isLoading, termsAccepted]);
 
   return (
     <LinearGradient colors={["#dc2626", "#f55023"]} style={styles.container}>

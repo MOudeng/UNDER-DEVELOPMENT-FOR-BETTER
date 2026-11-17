@@ -1,9 +1,18 @@
 import { STEP_ASSETS } from "../data/levels";
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
-import { ArrowLeft, ArrowRight, Play } from "lucide-react-native";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  Home,
+  Play,
+  RotateCcw,
+} from "lucide-react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Alert,
+  BackHandler,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -13,17 +22,12 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import PatternBackground from "../components/PatternBackground";
-import { useUser } from "../context/UserContext";
-import {
-  HistoryManagementService,
-  LevelManagementService,
-  ScoringEngine,
-  SessionManager,
-  TimerService,
-} from "../services";
-import { GUEST_STATISTICS_USER_ID } from "../services/HistoryManagementService";
+import { useProfiles } from "../context/ProfileContext";
+import { useCompletionSound } from "../hooks/useCompletionSound";
+import { TimerService } from "../services";
+import LocalDatabaseService from "../services/LocalDatabaseService";
 import { Color, FontFamily, Gradient, Shadow } from "../styles/globalstyle";
-import { saveLevelPerformance } from "../utils/performanceStorage";
+import { createPracticeBatch } from "../utils/practicePatterns";
 
 type Choice = "test" | "practice";
 
@@ -33,169 +37,228 @@ type SearchParams = {
 
 type Phase = "idle" | "running" | "ready";
 
+type ExitTarget = "back" | "home";
+
 type StepResult = {
   step: number;
   player1Time: number;
+  durationMs: number;
   player2Time: number;
   mode: "single";
 };
 
 const TOTAL_STEPS = 8;
 
+const PATTERN_VARIANTS = STEP_ASSETS.map((stepAssets) =>
+  stepAssets.map((asset, index) => ({ asset, variant: "abcdefgh"[index] })),
+);
+
 const randomizeStepChoices = () =>
-  STEP_ASSETS.map(
-    (stepAssets) => stepAssets[Math.floor(Math.random() * stepAssets.length)],
+  PATTERN_VARIANTS.map(
+    (variants) => variants[Math.floor(Math.random() * variants.length)],
   );
+
+const upsertResult = (results: StepResult[], nextResult: StepResult) => {
+  const existingIndex = results.findIndex(
+    (result) => result.step === nextResult.step,
+  );
+  if (existingIndex === -1) {
+    return [...results, nextResult].sort((a, b) => a.step - b.step);
+  }
+
+  const nextResults = [...results];
+  nextResults[existingIndex] = nextResult;
+  return nextResults.sort((a, b) => a.step - b.step);
+};
 
 export default function GameplayPage() {
   const { width, height } = useWindowDimensions();
-  const { user } = useUser();
+  const { activeProfile, isGuest } = useProfiles();
   const { choice = "test" } = useLocalSearchParams<SearchParams>();
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [currentStep, setCurrentStep] = useState(1);
   const currentLevelId = ((currentStep - 1) % TOTAL_STEPS) + 1;
-  const currentLevel = LevelManagementService.getLevelById(currentLevelId);
-  const timeLimit = currentLevel?.timeLimit || 60;
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const elapsedSecondsRef = useRef(0);
+  const stepStartedAtRef = useRef<number | null>(null);
   const isAdvancingRef = useRef(false);
   const [results, setResults] = useState<StepResult[]>([]);
   const savedSteps = useRef(new Set<number>());
-  const savedResults = useRef(new Set<number>());
+  const sessionIdPromiseRef = useRef<Promise<string | null> | null>(null);
+  const sessionFinishedRef = useRef(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const playPatternComplete = useCompletionSound("pattern");
 
-  const stepChoices = useMemo(() => randomizeStepChoices(), []);
-  const currentImage = stepChoices[(currentStep - 1) % TOTAL_STEPS];
+  const [stepChoices, setStepChoices] = useState(() =>
+    choice === "practice"
+      ? createPracticeBatch(PATTERN_VARIANTS)
+      : randomizeStepChoices(),
+  );
+  const { asset: currentImage, variant: currentVariant } =
+    stepChoices[currentStep - 1];
   const isLastStep = choice === "test" && currentStep === TOTAL_STEPS;
   const choiceLabel = choice === "test" ? "TEST" : "PRACTICE / SIMULASI";
   const isLandscape = width > height;
   const landscapeBodyWidth = Math.min(320, Math.max(200, width * 0.28));
   const landscapePatternSize = Math.min(360, Math.max(160, height - 150));
 
-  const saveResult = useCallback((result: StepResult) => {
-    if (savedResults.current.has(result.step)) {
-      return;
-    }
-
-    savedResults.current.add(result.step);
-    setResults((prev) => [...prev, result]);
+  const showFeedback = useCallback((message: string) => {
+    setFeedback(message);
+    if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+    feedbackTimerRef.current = setTimeout(() => setFeedback(null), 1400);
   }, []);
 
-  const persistCurrentStep = useCallback(async (timeSpent: number) => {
-    if (savedSteps.current.has(currentStep)) {
+  useEffect(
+    () => () => {
+      if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+    },
+    [],
+  );
+
+  const getElapsedDurationMs = useCallback(() => {
+    if (stepStartedAtRef.current === null) return 0;
+    return Math.max(0, Date.now() - stepStartedAtRef.current);
+  }, []);
+
+  const persistCurrentStep = useCallback(async (durationMs: number) => {
+    if (isGuest || (choice === "test" && savedSteps.current.has(currentStep))) {
       return;
     }
 
-    savedSteps.current.add(currentStep);
-    const statisticsUserId = user.id ?? GUEST_STATISTICS_USER_ID;
-
-    const scoringResult = ScoringEngine.createLevelCompletion({
-      levelId: currentLevelId,
-      levelTitle: currentLevel?.title || `Level ${currentLevelId}`,
-      timeSpent,
-      timeLimit,
-      patternsCompleted: 1,
-      userId: statisticsUserId,
-    });
-
-    await HistoryManagementService.savePerformance(
-      statisticsUserId,
-      scoringResult.gamePerformance,
-    );
-    if (user.id) {
-      await HistoryManagementService.addPerformanceToSession(
-        user.id,
-        scoringResult.gamePerformance,
-      );
-    }
-
-    if (choice === "test") {
-      if (user.id) {
-        await saveLevelPerformance(
-          user.id,
-          user.name,
-          scoringResult.levelPerformance,
-        );
-      }
-      await LevelManagementService.markLevelCompleted(currentLevelId);
-    }
-
-    if (user.id) {
-      await SessionManager.logActivity(user.id, "level_complete", "gameplay", {
-        levelId: currentStep,
-        score: scoringResult.score,
-        timeSpent,
-        choice,
-        mode: "single",
+    try {
+      const sessionId = await sessionIdPromiseRef.current;
+      if (!sessionId) throw new Error("Sesi permainan belum siap.");
+      await LocalDatabaseService.savePatternResult({
+        sessionId,
+        patternId: `level-${currentLevelId}-step-${currentStep}`,
+        levelNumber: currentLevelId,
+        patternVariant: currentVariant,
+        durationMs,
+        replaceExisting: choice === "practice",
       });
+    } catch (error) {
+      Alert.alert(
+        "Riwayat gagal disimpan",
+        error instanceof Error
+          ? error.message
+          : "Penyimpanan lokal bermasalah. Silakan coba lagi.",
+      );
+      throw error;
     }
-  }, [
-    choice,
-    currentLevel?.title,
-    currentLevelId,
-    currentStep,
-    timeLimit,
-    user.id,
-    user.name,
-  ]);
+    savedSteps.current.add(currentStep);
+  }, [choice, currentLevelId, currentStep, currentVariant, isGuest]);
 
   const finishGame = useCallback(async (finalResults: StepResult[]) => {
-    if (choice === "test") {
-      const totalTimeSeconds = finalResults.reduce(
-        (total, result) => total + result.player1Time,
-        0,
+    const totalDurationMs = finalResults.reduce(
+      (total, result) => total + Math.max(0, result.durationMs),
+      0,
+    );
+    try {
+      if (!isGuest) {
+        const sessionId = await sessionIdPromiseRef.current;
+        if (!sessionId) throw new Error("Sesi permainan belum siap.");
+        await LocalDatabaseService.finishGameSession(sessionId, totalDurationMs);
+      }
+      sessionFinishedRef.current = true;
+    } catch (error) {
+      Alert.alert(
+        "Sesi gagal diselesaikan",
+        error instanceof Error
+          ? error.message
+          : "Riwayat belum tersimpan. Silakan coba lagi.",
       );
-      await HistoryManagementService.saveCompletedTestSession(
-        user.id ?? GUEST_STATISTICS_USER_ID,
-        totalTimeSeconds,
-      );
+      throw error;
     }
 
-    if (user.id) {
-      HistoryManagementService.endSession(user.id);
-      SessionManager.logActivity(user.id, "game_complete", "gameplay", {
-        mode: "single",
-        choice,
-      });
-    }
-
-    router.push({
+    // Replace, not push: a finished game left underneath the results is what
+    // "Main Lagi" followed by exit used to land on, with no working buttons.
+    router.replace({
       pathname: "/data-analisa",
       params: {
         results: JSON.stringify(finalResults),
+        choice,
       },
     });
-  }, [choice, user.id]);
+  }, [choice, isGuest]);
 
   useEffect(() => {
-    if (user.id) {
-      HistoryManagementService.startSession(user.id);
-      SessionManager.logActivity(user.id, "game_start", "gameplay", {
-        mode: "single",
-        choice,
-      });
+    if (sessionIdPromiseRef.current) return;
+    if (isGuest) {
+      sessionIdPromiseRef.current = Promise.resolve(null);
+      return;
     }
-  }, [choice, user.id]);
+    if (!activeProfile) {
+      sessionIdPromiseRef.current = Promise.resolve(null);
+      Alert.alert("Pilih profil", "Pilih atau buat profil sebelum mulai bermain.", [
+        { text: "Pilih Profil", onPress: () => router.replace("/profiles") },
+      ]);
+      return;
+    }
+
+    sessionIdPromiseRef.current = LocalDatabaseService.beginGameSession(
+      activeProfile.id,
+      choice,
+      "manual_completion",
+    ).catch((error) => {
+      Alert.alert(
+        "Sesi gagal dibuat",
+        error instanceof Error
+          ? error.message
+          : "Penyimpanan lokal bermasalah. Riwayat tidak dapat disimpan.",
+      );
+      return null;
+    });
+  }, [activeProfile, choice, isGuest]);
 
   useEffect(() => {
     if (phase !== "running") {
       return;
     }
 
-    const timer = setInterval(() => {
-      const nextTime = elapsedSecondsRef.current + 1;
-      elapsedSecondsRef.current = nextTime;
-      setElapsedSeconds(nextTime);
-    }, 1000);
+    const updateTimer = () => {
+      setElapsedSeconds(Math.floor(getElapsedDurationMs() / 1000));
+    };
+    updateTimer();
+    const timer = setInterval(updateTimer, 250);
 
     return () => clearInterval(timer);
-  }, [phase]);
+  }, [getElapsedDurationMs, phase]);
 
   const startStep = () => {
-    elapsedSecondsRef.current = 0;
+    stepStartedAtRef.current = Date.now();
     isAdvancingRef.current = false;
     setElapsedSeconds(0);
     setPhase("running");
+  };
+
+  const moveToStep = (step: number) => {
+    if (step > stepChoices.length) {
+      setStepChoices((choices) => [
+        ...choices,
+        ...createPracticeBatch(PATTERN_VARIANTS),
+      ]);
+    }
+    setCurrentStep(step);
+    stepStartedAtRef.current = Date.now();
+    setElapsedSeconds(0);
+    isAdvancingRef.current = false;
+    setPhase("running");
+  };
+
+  const buildCurrentResult = (attemptDurationMs: number): StepResult => {
+    const previousDurationMs =
+      choice === "practice"
+        ? results.find((result) => result.step === currentStep)?.durationMs ?? 0
+        : 0;
+    const durationMs = previousDurationMs + attemptDurationMs;
+    return {
+      step: currentStep,
+      player1Time: durationMs / 1000,
+      durationMs,
+      player2Time: 0,
+      mode: "single",
+    };
   };
 
   const handleNextStep = async () => {
@@ -206,28 +269,58 @@ export default function GameplayPage() {
     isAdvancingRef.current = true;
     setPhase("ready");
 
-    const timeSpent = elapsedSecondsRef.current;
-    const result: StepResult = {
-      step: currentStep,
-      player1Time: timeSpent,
-      player2Time: 0,
-      mode: "single",
-    };
+    const durationMs = getElapsedDurationMs();
+    const result = buildCurrentResult(durationMs);
+    const nextResults = upsertResult(results, result);
 
-    saveResult(result);
+    try {
+      await persistCurrentStep(result.durationMs);
+      setResults(nextResults);
 
-    if (isLastStep) {
-      await persistCurrentStep(timeSpent);
-      await finishGame([...results, result]);
+      if (isLastStep) {
+        // The results screen plays the session fanfare as this screen closes.
+        await finishGame(nextResults);
+        return;
+      }
+
+      void playPatternComplete();
+      showFeedback(`Pola ${currentStep} selesai.`);
+      moveToStep(currentStep + 1);
+    } catch {
+      isAdvancingRef.current = false;
+      setPhase("running");
+    }
+  };
+
+  const handlePracticeNavigation = async (targetStep: number) => {
+    if (
+      choice !== "practice" ||
+      phase !== "running" ||
+      isAdvancingRef.current ||
+      targetStep < 1
+    ) {
       return;
     }
 
-    elapsedSecondsRef.current = 0;
-    setElapsedSeconds(0);
-    setCurrentStep((step) => step + 1);
-    isAdvancingRef.current = false;
-    setPhase("running");
-    await persistCurrentStep(timeSpent);
+    isAdvancingRef.current = true;
+    setPhase("ready");
+
+    const durationMs = getElapsedDurationMs();
+    const result = buildCurrentResult(durationMs);
+    const nextResults = upsertResult(results, result);
+
+    try {
+      await persistCurrentStep(result.durationMs);
+      if (targetStep > currentStep) void playPatternComplete();
+      showFeedback(
+        isGuest ? `Pola ${currentStep} selesai.` : `Waktu pola ${currentStep} tersimpan.`,
+      );
+      setResults(nextResults);
+      moveToStep(targetStep);
+    } catch {
+      isAdvancingRef.current = false;
+      setPhase("running");
+    }
   };
 
   const handleFinishPractice = async () => {
@@ -237,19 +330,119 @@ export default function GameplayPage() {
 
     isAdvancingRef.current = true;
     setPhase("ready");
+    const durationMs = getElapsedDurationMs();
+    const result = buildCurrentResult(durationMs);
+    const nextResults = upsertResult(results, result);
 
-    const timeSpent = elapsedSecondsRef.current;
-    const result: StepResult = {
-      step: currentStep,
-      player1Time: timeSpent,
-      player2Time: 0,
-      mode: "single",
-    };
-
-    saveResult(result);
-    await persistCurrentStep(timeSpent);
-    await finishGame([...results, result]);
+    try {
+      await persistCurrentStep(result.durationMs);
+      setResults(nextResults);
+      await finishGame(nextResults);
+    } catch {
+      isAdvancingRef.current = false;
+      setPhase("running");
+    }
   };
+
+  const cancelCurrentSession = useCallback(async () => {
+    const sessionId = await sessionIdPromiseRef.current;
+    if (sessionId && !sessionFinishedRef.current) {
+      await LocalDatabaseService.cancelGameSession(sessionId);
+    }
+  }, []);
+
+  const exitGame = useCallback(async (target: ExitTarget) => {
+    try {
+      isAdvancingRef.current = true;
+      setPhase("ready");
+      await cancelCurrentSession();
+      if (target === "home") {
+        router.dismissTo("/main/home");
+      } else {
+        router.back();
+      }
+    } catch (error) {
+      isAdvancingRef.current = false;
+      setPhase("running");
+      Alert.alert(
+        "Gagal keluar",
+        error instanceof Error ? error.message : "Silakan coba lagi.",
+      );
+    }
+  }, [cancelCurrentSession]);
+
+  const requestExit = useCallback((target: ExitTarget) => {
+    if (isAdvancingRef.current) return;
+    Alert.alert(
+      "Keluar dari permainan?",
+      "Progres sesi yang belum selesai tidak akan disimpan.",
+      [
+        { text: "Lanjut bermain", style: "cancel" },
+        {
+          text: target === "home" ? "Ke Beranda" : "Keluar",
+          style: "destructive",
+          onPress: () => void exitGame(target),
+        },
+      ],
+    );
+  }, [exitGame]);
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      () => {
+        requestExit("back");
+        return true;
+      },
+    );
+    return () => subscription.remove();
+  }, [requestExit]);
+
+  const restartPractice = useCallback(() => {
+    if (choice !== "practice" || (!activeProfile && !isGuest)) return;
+
+    Alert.alert(
+      "Mulai ulang latihan?",
+      "Progres latihan ini akan dihapus dan pola akan diacak kembali.",
+      [
+        { text: "Batal", style: "cancel" },
+        {
+          text: "Mulai Ulang",
+          onPress: async () => {
+            try {
+              isAdvancingRef.current = true;
+              setPhase("ready");
+              await cancelCurrentSession();
+              sessionFinishedRef.current = false;
+              sessionIdPromiseRef.current = activeProfile
+                ? LocalDatabaseService.beginGameSession(
+                    activeProfile.id,
+                    "practice",
+                    "manual_completion",
+                  )
+                : Promise.resolve(null);
+              savedSteps.current.clear();
+              setResults([]);
+              setStepChoices(createPracticeBatch(PATTERN_VARIANTS));
+              setCurrentStep(1);
+              setElapsedSeconds(0);
+              stepStartedAtRef.current = null;
+              isAdvancingRef.current = false;
+              setPhase("idle");
+              showFeedback("Latihan dimulai ulang dengan pola baru.");
+            } catch (error) {
+              isAdvancingRef.current = false;
+              setPhase("running");
+              Alert.alert(
+                "Latihan gagal dimulai ulang",
+                error instanceof Error ? error.message : "Silakan coba lagi.",
+              );
+            }
+          },
+        },
+      ],
+    );
+  }, [activeProfile, cancelCurrentSession, choice, isGuest, showFeedback]);
 
   return (
     <View style={styles.container}>
@@ -276,7 +469,7 @@ export default function GameplayPage() {
                   styles.backButton,
                   pressed && styles.backButtonPressed,
                 ]}
-                onPress={() => router.back()}
+                onPress={() => requestExit("back")}
               >
                 <ArrowLeft
                   color={Color.colorOrangered}
@@ -286,9 +479,31 @@ export default function GameplayPage() {
               </Pressable>
 
               <View style={styles.headerTextWrap}>
-                <Text style={styles.headerTitle}>Pola - {currentStep}</Text>
+                <Text style={styles.headerTitle}>
+                  {choice === "test"
+                    ? `Pola ${currentStep} dari ${TOTAL_STEPS}`
+                    : `Pola ${currentStep}`}
+                </Text>
                 <Text style={styles.headerSubtitle}>{choiceLabel}</Text>
               </View>
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Kembali ke Beranda"
+                hitSlop={8}
+                style={({ pressed }) => [
+                  styles.homeButton,
+                  pressed && styles.backButtonPressed,
+                ]}
+                onPress={() => requestExit("home")}
+              >
+                <Home
+                  color={Color.colorOrangered}
+                  size={17}
+                  strokeWidth={2.4}
+                />
+                <Text style={styles.homeButtonText}>Beranda</Text>
+              </Pressable>
             </View>
 
             <View
@@ -319,6 +534,12 @@ export default function GameplayPage() {
             <Text style={styles.timerText}>
               {TimerService.formatSeconds(elapsedSeconds)}
             </Text>
+            {feedback ? (
+              <View style={styles.feedbackBanner}>
+                <CheckCircle2 color="#16a34a" size={17} />
+                <Text style={styles.feedbackText}>{feedback}</Text>
+              </View>
+            ) : null}
           </View>
 
           <View
@@ -352,37 +573,56 @@ export default function GameplayPage() {
               </View>
             ) : phase === "running" ? (
               choice === "practice" ? (
-                <View style={styles.practiceActionRow}>
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.primaryWideButton,
-                      styles.practiceActionButton,
-                      pressed && styles.buttonPressed,
-                    ]}
-                    onPress={handleNextStep}
-                  >
-                    <View style={styles.actionInner}>
-                      <Text style={styles.practiceActionLabel}>Next</Text>
-                      <ArrowRight
-                        color={Color.colorWhite}
-                        size={20}
-                        strokeWidth={2.5}
-                      />
-                    </View>
-                  </Pressable>
+                <View style={styles.practiceControls}>
+                  <View style={styles.practiceActionRow}>
+                    <Pressable
+                      disabled={currentStep === 1}
+                      style={({ pressed }) => [
+                        styles.navigationPracticeButton,
+                        currentStep === 1 && styles.disabledButton,
+                        pressed && styles.buttonPressed,
+                      ]}
+                      onPress={() => handlePracticeNavigation(currentStep - 1)}
+                    >
+                      <ArrowLeft color={Color.colorOrangered} size={19} />
+                      <Text style={styles.navigationPracticeLabel}>Sebelumnya</Text>
+                    </Pressable>
 
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.primaryWideButton,
-                      styles.practiceActionButton,
-                      pressed && styles.buttonPressed,
-                    ]}
-                    onPress={handleFinishPractice}
-                  >
-                    <View style={styles.actionInner}>
-                      <Text style={styles.practiceActionLabel}>Selesai</Text>
-                    </View>
-                  </Pressable>
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.primaryWideButton,
+                        styles.practiceActionButton,
+                        pressed && styles.buttonPressed,
+                      ]}
+                      onPress={() => handlePracticeNavigation(currentStep + 1)}
+                    >
+                      <Text style={styles.practiceActionLabel}>Berikutnya</Text>
+                      <ArrowRight color={Color.colorWhite} size={19} />
+                    </Pressable>
+                  </View>
+
+                  <View style={styles.practiceActionRow}>
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.navigationPracticeButton,
+                        pressed && styles.buttonPressed,
+                      ]}
+                      onPress={restartPractice}
+                    >
+                      <RotateCcw color={Color.colorOrangered} size={18} />
+                      <Text style={styles.navigationPracticeLabel}>Mulai Ulang</Text>
+                    </Pressable>
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.primaryWideButton,
+                        styles.practiceActionButton,
+                        pressed && styles.buttonPressed,
+                      ]}
+                      onPress={handleFinishPractice}
+                    >
+                      <Text style={styles.practiceActionLabel}>Selesai Latihan</Text>
+                    </Pressable>
+                  </View>
                 </View>
               ) : (
                 <View style={styles.actionGroup}>
@@ -474,6 +714,20 @@ const styles = StyleSheet.create({
   backButtonPressed: {
     opacity: 0.8,
   },
+  homeButton: {
+    minHeight: 34,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderRadius: 999,
+    backgroundColor: "rgba(219, 50, 14, 0.08)",
+  },
+  homeButtonText: {
+    fontSize: 13,
+    fontFamily: FontFamily.interSemiBold,
+    color: Color.colorOrangered,
+  },
   headerTextWrap: {
     flex: 1,
   },
@@ -545,6 +799,22 @@ const styles = StyleSheet.create({
     lineHeight: 40,
     letterSpacing: 0.4,
   },
+  feedbackBanner: {
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#ecfdf3",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    marginTop: 4,
+  },
+  feedbackText: {
+    color: "#15803d",
+    fontFamily: FontFamily.interSemiBold,
+    fontSize: 12,
+  },
   bodyCard: {
     flex: 1,
     minHeight: 240,
@@ -571,6 +841,10 @@ const styles = StyleSheet.create({
     gap: 12,
     marginTop: 10,
   },
+  practiceControls: {
+    width: "100%",
+    gap: 10,
+  },
   practiceActionRow: {
     width: "100%",
     flexDirection: "row",
@@ -583,6 +857,25 @@ const styles = StyleSheet.create({
     minWidth: 0,
     paddingHorizontal: 8,
   },
+  navigationPracticeButton: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 75,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Color.colorOrangered,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingHorizontal: 8,
+  },
+  navigationPracticeLabel: {
+    color: Color.colorOrangered,
+    fontFamily: FontFamily.interSemiBold,
+    fontSize: 13,
+  },
+  disabledButton: { opacity: 0.35 },
   practiceActionLabel: {
     color: Color.colorWhite,
     fontFamily: FontFamily.interSemiBold,

@@ -1,14 +1,21 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { Home } from "lucide-react-native";
-import { useMemo } from "react";
+import { Home, RotateCcw } from "lucide-react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+
+import { useProfiles } from "../context/ProfileContext";
+import { useCompletionSound } from "../hooks/useCompletionSound";
+import LocalDatabaseService from "../services/LocalDatabaseService";
+
+// Total waktu (detik) tiap sesi tamu sejak beranda; tidak pernah disimpan.
+const guestSessionTotals: number[] = [];
 
 type SessionResult = {
   step: number;
@@ -17,6 +24,7 @@ type SessionResult = {
 
 type SearchParams = {
   results?: string;
+  choice?: "test" | "practice";
 };
 
 const formatTime = (seconds: number) => {
@@ -25,91 +33,144 @@ const formatTime = (seconds: number) => {
     .toString()
     .padStart(2, "0");
   const remainingSeconds = (safeSeconds % 60).toString().padStart(2, "0");
-
   return `${minutes}:${remainingSeconds}`;
 };
 
 export default function DataAnalisaPage() {
-  const { results: rawResults } = useLocalSearchParams<SearchParams>();
-  const results = useMemo<SessionResult[]>(() => {
-    if (!rawResults) {
-      return [];
-    }
+  const { activeProfile, isGuest } = useProfiles();
+  const { results: rawResults, choice = "test" } =
+    useLocalSearchParams<SearchParams>();
+  const playSessionComplete = useCompletionSound("session");
+  const hasPlayedSound = useRef(false);
 
+  const results = useMemo<SessionResult[]>(() => {
+    if (!rawResults) return [];
     try {
-      const parsed = JSON.parse(rawResults);
-      return Array.isArray(parsed) ? parsed : [];
+      const parsed: unknown = JSON.parse(rawResults);
+      return Array.isArray(parsed) ? (parsed as SessionResult[]) : [];
     } catch {
       return [];
     }
   }, [rawResults]);
 
-  const player1TotalTime = results.reduce(
-    (total, result) => total + result.player1Time,
+  useEffect(() => {
+    if (hasPlayedSound.current || results.length === 0) return;
+    hasPlayedSound.current = true;
+    void playSessionComplete();
+  }, [playSessionComplete, results.length]);
+
+  const totalTime = results.reduce(
+    (total, result) => total + Math.max(0, result.player1Time),
     0,
   );
-  const fastestTime = results.length > 0
-    ? Math.min(...results.map((result) => result.player1Time))
-    : null;
-  const averageTime = results.length > 0
-    ? player1TotalTime / results.length
-    : null;
+  const modeLabel = choice === "practice" ? "Practice / Simulasi" : "Test";
+  const [averageSession, setAverageSession] = useState<number | null>(null);
+  const recordedRef = useRef(false);
+
+  useEffect(() => {
+    if (recordedRef.current || results.length === 0) return;
+    recordedRef.current = true;
+    if (isGuest) {
+      // Tamu: hanya dari sesi "Main Lagi" berturut-turut; direset saat ke beranda.
+      guestSessionTotals.push(totalTime);
+      setAverageSession(
+        guestSessionTotals.reduce((a, b) => a + b, 0) / guestSessionTotals.length,
+      );
+      return;
+    }
+    if (!activeProfile) return;
+    LocalDatabaseService.getProfileStatistics(activeProfile.id, choice)
+      .then((stats) =>
+        setAverageSession(
+          stats.averageDurationMs === null ? null : stats.averageDurationMs / 1000,
+        ),
+      )
+      .catch(() => setAverageSession(null));
+  }, [activeProfile, choice, isGuest, results.length, totalTime]);
+
+  const playingAgainRef = useRef(false);
+  // Any exit except "Main Lagi" (home button, system back) ends the guest run.
+  useEffect(
+    () => () => {
+      if (!playingAgainRef.current) guestSessionTotals.length = 0;
+    },
+    [],
+  );
+
+  const playAgain = () => {
+    playingAgainRef.current = true;
+    router.replace({ pathname: "/gameplay", params: { choice } });
+  };
 
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.navigationRow}>
-          <TouchableOpacity
-            style={styles.homeButton}
-            onPress={() => router.replace("/main/home")}
-          >
-            <Home color="#FFFFFF" size={18} strokeWidth={2.5} />
-            <Text style={styles.homeButtonText}>Beranda</Text>
-          </TouchableOpacity>
-        </View>
-
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
           <Text style={styles.title}>Hasil Permainan</Text>
+          <Text style={styles.appreciation}>
+            Hebat! Kamu berhasil menyelesaikan {results.length} pola.
+          </Text>
+          {isGuest ? (
+            <Text style={styles.guestNote}>
+              Mode Tamu: hasil ini tidak disimpan dan hilang setelah halaman ditutup.
+            </Text>
+          ) : null}
 
-          <View style={styles.overallCard}>
-            <Text style={styles.overallLabel}>TOTAL SEMUA SOAL</Text>
-            <Text style={styles.overallValue}>{formatTime(player1TotalTime)}</Text>
-            <Text style={styles.overallMeta}>{results.length} soal</Text>
-          </View>
-
-          <View style={styles.timeSummaryRow}>
-            <View style={styles.timeSummaryCard}>
-              <Text style={styles.timeSummaryLabel}>WAKTU TERCEPAT</Text>
-              <Text style={styles.timeSummaryValue}>
-                {fastestTime === null ? "--:--" : formatTime(fastestTime)}
+          <View style={styles.summaryCard}>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Profil</Text>
+              <Text style={styles.summaryValue}>
+                {isGuest
+                  ? "Tamu"
+                  : activeProfile?.displayName ?? "Profil tidak tersedia"}
               </Text>
             </View>
-            <View style={styles.timeSummaryCard}>
-              <Text style={styles.timeSummaryLabel}>WAKTU RATA-RATA</Text>
-              <Text style={styles.timeSummaryValue}>
-                {averageTime === null ? "--:--" : formatTime(averageTime)}
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Mode permainan</Text>
+              <Text style={styles.summaryValue}>{modeLabel}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Pola selesai</Text>
+              <Text style={styles.summaryValue}>{results.length}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Rata-rata per sesi</Text>
+              <Text style={styles.summaryValue}>
+                {averageSession === null ? "--:--" : formatTime(averageSession)}
               </Text>
+            </View>
+            <View style={[styles.summaryRow, styles.lastSummaryRow]}>
+              <Text style={styles.summaryLabel}>Total waktu</Text>
+              <Text style={styles.totalValue}>{formatTime(totalTime)}</Text>
             </View>
           </View>
 
-          <View style={styles.textCard}>
-            <Text style={styles.cardTitle}>Waktu Tiap Soal</Text>
-            {results.length === 0 ? (
-              <Text style={styles.cardText}>Belum ada hasil waktu permainan.</Text>
-            ) : (
-              results.map((result) => (
-                <View key={result.step} style={styles.resultRow}>
-                  <Text style={styles.resultLabel}>Soal {result.step}</Text>
-                  <Text style={styles.resultTime}>
-                    {formatTime(result.player1Time)}
-                  </Text>
-                </View>
-              ))
-            )}
+          <View style={styles.patternCard}>
+            <Text style={styles.cardTitle}>Waktu Tiap Pola</Text>
+            {results.map((result) => (
+              <View key={result.step} style={styles.resultRow}>
+                <Text style={styles.resultLabel}>Pola {result.step}</Text>
+                <Text style={styles.resultTime}>
+                  {formatTime(result.player1Time)}
+                </Text>
+              </View>
+            ))}
           </View>
+
+          <TouchableOpacity style={styles.primaryButton} onPress={playAgain}>
+            <RotateCcw color="#FFFFFF" size={19} />
+            <Text style={styles.primaryButtonText}>Main Lagi</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={() => router.dismissTo("/main/home")}
+          >
+            <Home color="#f45023" size={19} />
+            <Text style={styles.secondaryButtonText}>Kembali ke Beranda</Text>
+          </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>
     </View>
@@ -118,148 +179,90 @@ export default function DataAnalisaPage() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f6f6f6" },
-  safeArea: { flex: 1, paddingHorizontal: 20 },
-  navigationRow: {
-    flexDirection: "row",
-    marginTop: 12,
-    marginBottom: 18,
-  },
-  homeButton: {
-    alignSelf: "stretch",
-    width: "100%",
-    backgroundColor: "#f45023",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-  },
-  homeButtonText: { color: "#FFFFFF", fontWeight: "700" },
-  scrollContent: { paddingBottom: 30 },
-  title: {
-    fontSize: 28,
+  safeArea: { flex: 1 },
+  scrollContent: { padding: 20, paddingBottom: 36 },
+  title: { color: "#5d3f3c", fontSize: 28, fontWeight: "900" },
+  appreciation: {
+    color: "#f45023",
+    fontSize: 17,
     fontWeight: "800",
-    color: "#5d3f3c",
+    lineHeight: 24,
+    marginTop: 8,
     marginBottom: 18,
   },
-  loadingCard: {
-    minHeight: 220,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 14,
-  },
-  loadingText: { color: "#6b5a57", fontSize: 14 },
-  overallCard: {
-    backgroundColor: "#f45023",
-    borderRadius: 20,
-    padding: 24,
-    alignItems: "center",
-    marginBottom: 14,
-  },
-  overallLabel: { color: "#FFFFFF", fontSize: 12, fontWeight: "700" },
-  overallValue: {
-    color: "#FFFFFF",
-    fontSize: 64,
-    lineHeight: 72,
-    fontWeight: "900",
-  },
-  overallMeta: { color: "rgba(255,255,255,0.85)", fontSize: 12 },
-  timeSummaryRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginBottom: 14,
-  },
-  timeSummaryCard: {
-    flex: 1,
-    minWidth: 0,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "rgba(231, 189, 183, 0.85)",
-  },
-  timeSummaryLabel: {
-    color: "#8f7772",
-    fontSize: 11,
+  guestNote: {
+    color: "#5d3f3c",
+    fontSize: 14,
     fontWeight: "700",
-  },
-  timeSummaryValue: {
-    color: "#f45023",
-    fontSize: 24,
-    lineHeight: 32,
-    fontWeight: "900",
-    marginTop: 6,
-  },
-  playerSummaryRow: {
-    flexDirection: "row",
-    gap: 12,
+    lineHeight: 20,
     marginBottom: 14,
   },
-  playerSummaryCard: {
-    flex: 1,
-    backgroundColor: "#f45023",
-    borderRadius: 20,
-    padding: 18,
-    alignItems: "center",
-  },
-  playerSummaryTime: {
-    color: "#FFFFFF",
-    fontSize: 30,
-    lineHeight: 38,
-    fontWeight: "900",
-    marginTop: 8,
-  },
-  grid: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 14 },
-  scoreCard: {
-    width: "48%",
+  summaryCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "rgba(231, 189, 183, 0.85)",
-  },
-  scoreLabel: { color: "#999", fontSize: 11, fontWeight: "700" },
-  scoreValue: {
-    color: "#5d3f3c",
-    fontSize: 32,
-    fontWeight: "900",
-    marginTop: 8,
-  },
-  textCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 18,
-    marginBottom: 12,
     borderWidth: 1,
-    borderColor: "rgba(231, 189, 183, 0.85)",
+    borderColor: "#ead8d4",
+    marginBottom: 14,
   },
-  cardTitle: {
-    color: "#f45023",
-    fontSize: 16,
-    fontWeight: "800",
-    marginBottom: 8,
-  },
-  cardText: { color: "#6b5a57", fontSize: 13, lineHeight: 20 },
-  resultRow: {
-    minHeight: 48,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0e1de",
+  summaryRow: {
+    minHeight: 46,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0e1de",
   },
-  resultLabel: { color: "#5d3f3c", fontSize: 14, fontWeight: "700" },
-  resultTime: { color: "#f45023", fontSize: 14, fontWeight: "800" },
-  playerTimes: { alignItems: "flex-end", gap: 4 },
-  fallbackText: {
-    color: "#a45a4b",
-    fontSize: 12,
-    lineHeight: 18,
+  lastSummaryRow: { borderBottomWidth: 0 },
+  summaryLabel: { color: "#8f7772", fontSize: 13 },
+  summaryValue: {
+    flex: 1,
+    color: "#5d3f3c",
+    fontSize: 14,
+    fontWeight: "800",
+    textAlign: "right",
+  },
+  totalValue: { color: "#f45023", fontSize: 24, fontWeight: "900" },
+  patternCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#ead8d4",
+    marginBottom: 18,
+  },
+  cardTitle: { color: "#5d3f3c", fontSize: 17, fontWeight: "900" },
+  resultRow: {
+    minHeight: 46,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0e1de",
+  },
+  resultLabel: { color: "#6b5a57", fontSize: 14, fontWeight: "700" },
+  resultTime: { color: "#f45023", fontSize: 14, fontWeight: "900" },
+  primaryButton: {
+    minHeight: 54,
+    borderRadius: 14,
+    backgroundColor: "#f45023",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  primaryButtonText: { color: "#FFFFFF", fontSize: 16, fontWeight: "800" },
+  secondaryButton: {
+    minHeight: 54,
     marginTop: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#f45023",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
   },
+  secondaryButtonText: { color: "#f45023", fontSize: 15, fontWeight: "800" },
 });

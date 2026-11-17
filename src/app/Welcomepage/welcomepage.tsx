@@ -99,7 +99,6 @@ const styles = StyleSheet.create({
     alignSelf: "stretch",
   },
   selamatDatangDi: {
-    height: 24,
     fontSize: 22,
     transform: [
       {
