@@ -1,4 +1,5 @@
 import { router } from "expo-router";
+import { useState } from "react";
 import { ArrowLeft, ChevronRight, Home } from "lucide-react-native";
 import {
   Pressable,
@@ -9,7 +10,9 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import BlockBackground from "../components/BlockBackground";
 import PatternBackground from "../components/PatternBackground";
+import PatternRow from "../components/PatternRow";
 import { useProfiles } from "../context/ProfileContext";
 import {
   BorderRadius,
@@ -23,6 +26,7 @@ export default function GameModePage() {
   const { height } = useWindowDimensions();
   const isLandscape = height < 500;
   const { isGuest } = useProfiles();
+  const [heroWidth, setHeroWidth] = useState(0);
 
   const startChoice = (choice: "test" | "practice") => {
     router.push({
@@ -35,6 +39,7 @@ export default function GameModePage() {
 
   return (
     <View style={styles.container}>
+      <BlockBackground />
       <SafeAreaView style={styles.safeArea}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
@@ -45,6 +50,7 @@ export default function GameModePage() {
               styles.heroSection,
               isLandscape && styles.heroSectionLandscape,
             ]}
+            onLayout={(event) => setHeroWidth(event.nativeEvent.layout.width)}
           >
             <PatternBackground
               position="topRight"
@@ -54,6 +60,11 @@ export default function GameModePage() {
 
             <View style={styles.heroContent}>
               <Text style={styles.heroTitle}>Ayo{`\n`}Mulai!</Text>
+            </View>
+
+            <View style={styles.heroPatterns}>
+              {/* Padding is 24 each side; tiles shrink with the widget, and in landscape stay small. */}
+              <PatternRow width={heroWidth - 48} maxSize={isLandscape ? 64 : 96} />
             </View>
           </View>
 
@@ -178,6 +189,10 @@ const styles = StyleSheet.create({
     minHeight: 140,
     paddingTop: 16,
     paddingBottom: 18,
+  },
+  heroPatterns: {
+    marginTop: 16,
+    zIndex: 1,
   },
   heroContent: {
     zIndex: 1,

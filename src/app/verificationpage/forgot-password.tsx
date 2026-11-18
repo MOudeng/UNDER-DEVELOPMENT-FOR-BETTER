@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import PatternBackground from "../../components/PatternBackground";
+import BlockBackground from "../../components/BlockBackground";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -33,6 +34,7 @@ export default function ForgotPassword() {
 
   return (
     <LinearGradient colors={["#dc2626", "#f55023"]} style={styles.container}>
+      <BlockBackground color="#FFFFFF" opacity={0.14} />
       <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView behavior="padding" style={styles.keyboardView}>
           <ScrollView contentContainerStyle={styles.scrollContent}>

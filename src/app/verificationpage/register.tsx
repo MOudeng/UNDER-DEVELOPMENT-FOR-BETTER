@@ -14,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import PatternBackground from "../../components/PatternBackground";
 import { useUser } from "../../context/UserContext";
 import { IdentityService } from "../../services";
+import BlockBackground from "../../components/BlockBackground";
 
 export default function Register() {
   const { refreshUser } = useUser();
@@ -49,6 +50,7 @@ export default function Register() {
 
   return (
     <LinearGradient colors={["#dc2626", "#f55023"]} style={styles.container}>
+      <BlockBackground color="#FFFFFF" opacity={0.14} />
       <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView behavior="padding" style={styles.keyboardView}>
           <ScrollView contentContainerStyle={styles.scrollContent}>

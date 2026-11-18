@@ -21,7 +21,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import PatternBackground from "../components/PatternBackground";
+import TriangleBackground from "../components/TriangleBackground";
 import { useProfiles } from "../context/ProfileContext";
 import { useCompletionSound } from "../hooks/useCompletionSound";
 import { TimerService } from "../services";
@@ -457,11 +457,7 @@ export default function GameplayPage() {
           <View
             style={[styles.headerCard, isLandscape && styles.landscapeHeaderCard]}
           >
-            <PatternBackground
-              position="topRight"
-              opacity={0.2}
-              rotate="180deg"
-            />
+            <TriangleBackground />
 
             <View style={styles.headerTopRow}>
               <Pressable
@@ -549,7 +545,7 @@ export default function GameplayPage() {
               isLandscape && { width: landscapeBodyWidth },
             ]}
           >
-            <PatternBackground position="bottomLeft" opacity={0.12} />
+            <TriangleBackground />
 
             {phase === "idle" ? (
               <View style={styles.actionGroup}>

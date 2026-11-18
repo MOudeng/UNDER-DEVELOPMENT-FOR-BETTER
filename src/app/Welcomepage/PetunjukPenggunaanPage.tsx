@@ -20,6 +20,7 @@ import {
   Gradient,
   Shadow,
 } from "../../styles/globalstyle";
+import BlockBackground from "../../components/BlockBackground";
 
 const TITLE_COLOR = "#6b1010";
 const SPARKLE_COLOR = "#f5b301";
@@ -76,6 +77,7 @@ const PetunjukPenggunaanPage = () => {
 
   return (
     <View style={styles.container}>
+      <BlockBackground />
       <SafeAreaView style={styles.safeArea}>
         <ScrollView
           style={styles.termsAndAgreements}

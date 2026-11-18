@@ -1,7 +1,6 @@
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import {
-  FlatList,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,7 +11,6 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import LineChart from "../components/LineChart";
-import SessionCard from "../components/SessionCard";
 import { useProfiles } from "../context/ProfileContext";
 import LocalDatabaseService from "../services/LocalDatabaseService";
 import type { SessionWithPatterns } from "../types/localProfiles";
@@ -26,6 +24,7 @@ import {
   levelRangeMs,
   summarizeSessions,
 } from "../utils/progressStats";
+import BlockBackground from "../components/BlockBackground";
 
 type GameMode = "test" | "practice";
 
@@ -195,12 +194,9 @@ export default function PerkembanganPage() {
 
   return (
     <View style={styles.container}>
+      <BlockBackground />
       <SafeAreaView style={styles.safeArea}>
-        <FlatList
-          data={sessions}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.content}
-          ListHeaderComponent={
+        <ScrollView contentContainerStyle={styles.content}>
             <View style={styles.headerContent}>
               <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
                 <Text style={styles.backButtonText}>Kembali</Text>
@@ -242,8 +238,12 @@ export default function PerkembanganPage() {
                   <Text style={styles.summaryValue}>{summary.count} Sesi</Text>
                 </View>
                 <View style={styles.summaryCard}>
-                  <Text style={styles.summaryLabel}>Rata-rata Waktu</Text>
-                  <Text style={styles.summaryValue}>{formatClock(summary.averageMs)}</Text>
+                  <Text style={styles.summaryLabel}>Rata-rata Sesi Terbaru</Text>
+                  <Text style={styles.summaryValue}>
+                    {formatClock(
+                      lastIndex >= 0 ? complete[lastIndex].totalDurationMs / LEVEL_COUNT : null,
+                    )}
+                  </Text>
                 </View>
               </View>
 
@@ -289,18 +289,14 @@ export default function PerkembanganPage() {
                 </>
               )}
 
-              {sessions.length > 0 ? (
-                <Text style={styles.sectionTitle}>Riwayat Sesi</Text>
-              ) : null}
+              <TouchableOpacity
+                style={styles.historyButton}
+                onPress={() => router.push({ pathname: "/riwayat-mode", params: { mode } })}
+              >
+                <Text style={styles.historyButtonText}>Lihat Riwayat Sesi</Text>
+              </TouchableOpacity>
             </View>
-          }
-          renderItem={({ item }) => (
-            <SessionCard
-              session={item}
-              profileName={activeProfile?.displayName ?? "Pemain"}
-            />
-          )}
-        />
+        </ScrollView>
       </SafeAreaView>
     </View>
   );
@@ -318,6 +314,16 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 12,
   },
+  historyButton: {
+    minHeight: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#2563eb",
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  historyButtonText: { color: "#2563eb", fontSize: 15, fontWeight: "800" },
   backButtonText: { color: "#FFFFFF", fontWeight: "700" },
   title: { color: "#5d3f3c", fontSize: 26, fontWeight: "900" },
   profileName: { color: "#6b5a57", fontSize: 13 },
@@ -355,7 +361,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   cardTitle: { color: "#5d3f3c", fontSize: 17, fontWeight: "900" },
-  sectionTitle: { color: "#5d3f3c", fontSize: 17, fontWeight: "900", marginTop: 4 },
   noteText: { color: "#6b5a57", fontSize: 12, lineHeight: 18 },
   insightText: { color: "#5d3f3c", fontSize: 13, lineHeight: 19, fontWeight: "700" },
   warningText: {

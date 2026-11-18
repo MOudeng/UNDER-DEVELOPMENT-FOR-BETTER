@@ -20,6 +20,7 @@ import {
   Gradient,
   Shadow,
 } from "../../styles/globalstyle";
+import BlockBackground from "../../components/BlockBackground";
 
 type PopupState = {
   visible: boolean;
@@ -107,6 +108,7 @@ export default function EmailVerification() {
 
   return (
     <View style={styles.container}>
+      <BlockBackground />
       <SafeAreaView style={styles.safeArea}>
         <Modal
           transparent

@@ -10,6 +10,7 @@ import {
   Gradient,
   Shadow,
 } from "../../styles/globalstyle";
+import BlockBackground from "../../components/BlockBackground";
 
 const WelcomePage = () => {
   const router = useRouter();
@@ -23,6 +24,7 @@ const WelcomePage = () => {
       locations={[0, 1]}
       colors={Gradient.primary}
     >
+      <BlockBackground color="#FFFFFF" opacity={0.14} />
       <ScrollView
         style={styles.scrollviewLayout}
         contentContainerStyle={styles.welcomePageScrollViewContent}

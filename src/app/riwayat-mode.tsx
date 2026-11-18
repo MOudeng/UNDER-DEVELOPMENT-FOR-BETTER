@@ -2,6 +2,8 @@ import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
 import {
   FlatList,
+  Pressable,
+  Modal,
   RefreshControl,
   StyleSheet,
   Text,
@@ -17,10 +19,23 @@ import type {
   LocalGameSession,
   SessionWithPatterns,
 } from "../types/localProfiles";
+import {
+  buildHistoryRows,
+  type HistoryFilter,
+  listMonths,
+  monthLabel,
+} from "../utils/historyView";
 import { formatClock } from "../utils/progressStats";
+import BlockBackground from "../components/BlockBackground";
 
 type HistoryMode = LocalGameSession["gameMode"];
 type Stat = { label: string; durationMs: number | null };
+
+const FILTERS: { value: HistoryFilter; label: string }[] = [
+  { value: "all", label: "Semua" },
+  { value: "week", label: "Minggu ini" },
+  { value: "record", label: "⭐ Rekor" },
+];
 
 const MODE_INFO: Record<HistoryMode, { title: string; color: string }> = {
   test: { title: "Riwayat Mode Test", color: "#f45023" },
@@ -73,6 +88,10 @@ export default function RiwayatModePage() {
   const [stats, setStats] = useState<Stat[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<HistoryFilter>("all");
+  const rows = buildHistoryRows(history, filter);
+  const [monthSheetOpen, setMonthSheetOpen] = useState(false);
+  const activeMonth = filter.startsWith("month:") ? filter.slice(6) : null;
 
   const loadHistory = useCallback(async () => {
     if (!activeProfile) {
@@ -112,11 +131,14 @@ export default function RiwayatModePage() {
 
   return (
     <View style={styles.container}>
+      <BlockBackground />
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <Text style={styles.backButtonText}>Kembali</Text>
-          </TouchableOpacity>
+          <View style={styles.topRow}>
+            <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+              <Text style={styles.backButtonText}>Kembali</Text>
+            </TouchableOpacity>
+          </View>
           <Text style={[styles.title, { color }]}>{title}</Text>
           <Text style={styles.profileName}>
             {activeProfile?.displayName ?? "Pemain"}
@@ -124,11 +146,11 @@ export default function RiwayatModePage() {
         </View>
 
         <FlatList
-          data={history}
-          keyExtractor={(item) => item.id}
+          data={rows}
+          keyExtractor={(row) => (row.type === "header" ? `h-${row.title}` : row.session.id)}
           contentContainerStyle={[
             styles.listContent,
-            history.length === 0 && styles.emptyListContent,
+            rows.length === 0 && styles.emptyListContent,
           ]}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -150,25 +172,107 @@ export default function RiwayatModePage() {
                   </View>
                 </View>
               ) : null}
+              {history.length > 0 ? (
+                <>
+                  <View style={styles.chipRow}>
+                    {FILTERS.map((item) => (
+                      <Pressable
+                        key={item.value}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: filter === item.value }}
+                        onPress={() => setFilter(item.value)}
+                        style={[styles.chip, filter === item.value && styles.chipSelected]}
+                      >
+                        <Text
+                          style={[styles.chipText, filter === item.value && styles.chipTextSelected]}
+                        >
+                          {item.label}
+                        </Text>
+                      </Pressable>
+                    ))}
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: activeMonth !== null }}
+                      onPress={() => setMonthSheetOpen(true)}
+                      style={[styles.chip, activeMonth !== null && styles.chipSelected]}
+                    >
+                      <Text
+                        style={[styles.chipText, activeMonth !== null && styles.chipTextSelected]}
+                      >
+                        {activeMonth ? monthLabel(activeMonth) : "Pilih bulan"} ▾
+                      </Text>
+                    </Pressable>
+                  </View>
+                </>
+              ) : null}
               {error ? <Text style={styles.errorText}>{error}</Text> : null}
             </View>
           }
           ListEmptyComponent={
             <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>Belum ada riwayat di sini</Text>
+              <Text style={styles.emptyTitle}>
+                {history.length === 0
+                  ? "Belum ada riwayat di sini"
+                  : filter.startsWith("month:")
+                    ? `Tidak ada sesi di ${monthLabel(filter.slice(6))}`
+                    : "Tidak ada sesi untuk filter ini"}
+              </Text>
               <Text style={styles.emptyText}>
-                Yuk, selesaikan satu permainan. Hasilnya akan tampil di sini.
+                {history.length === 0
+                  ? "Yuk, selesaikan satu permainan. Hasilnya akan tampil di sini."
+                  : filter.startsWith("month:")
+                    ? "Tidak ada sesi permainan yang dimainkan pada bulan ini."
+                    : "Coba pilih filter \"Semua\"."}
               </Text>
             </View>
           }
-          renderItem={({ item }) => (
-            <SessionCard
-              session={item}
-              profileName={activeProfile?.displayName ?? "Pemain"}
-            />
-          )}
+          renderItem={({ item }) =>
+            item.type === "header" ? (
+              <Text style={styles.groupTitle}>{item.title}</Text>
+            ) : (
+              <SessionCard
+                session={item.session}
+                badges={item.badges}
+                profileName={activeProfile?.displayName ?? "Pemain"}
+              />
+            )
+          }
         />
       </SafeAreaView>
+
+      <Modal
+        visible={monthSheetOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMonthSheetOpen(false)}
+      >
+        <Pressable style={styles.backdrop} onPress={() => setMonthSheetOpen(false)}>
+          <Pressable style={styles.sheet} onPress={() => {}}>
+            <Text style={styles.sheetTitle}>Pilih Bulan</Text>
+            <FlatList
+              data={listMonths(history)}
+              keyExtractor={(key) => key}
+              renderItem={({ item: key }) => (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: activeMonth === key }}
+                  onPress={() => {
+                    setFilter(`month:${key}`);
+                    setMonthSheetOpen(false);
+                  }}
+                  style={[styles.monthRow, activeMonth === key && styles.monthRowSelected]}
+                >
+                  <Text
+                    style={[styles.monthText, activeMonth === key && styles.monthTextSelected]}
+                  >
+                    {monthLabel(key)}
+                  </Text>
+                </Pressable>
+              )}
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -183,7 +287,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 12,
-    marginBottom: 18,
   },
   backButtonText: { color: "#FFFFFF", fontWeight: "700" },
   title: { fontSize: 25, fontWeight: "900" },
@@ -207,6 +310,44 @@ const styles = StyleSheet.create({
   },
   statsLabel: { color: "#999", fontSize: 11 },
   statsValue: { color: "#5d3f3c", fontSize: 18, fontWeight: "900", marginTop: 2 },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  topRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 18 },
+  backdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center",
+    padding: 24,
+  },
+  sheet: {
+    maxHeight: "65%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    padding: 16,
+  },
+  sheetTitle: { color: "#5d3f3c", fontSize: 18, fontWeight: "900", marginBottom: 8 },
+  monthRow: {
+    minHeight: 48,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    justifyContent: "center",
+  },
+  monthRowSelected: { backgroundColor: "#f45023" },
+  monthText: { color: "#5d3f3c", fontSize: 16, fontWeight: "700" },
+  monthTextSelected: { color: "#FFFFFF" },
+  chip: {
+    minHeight: 40,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#f45023",
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  chipSelected: { backgroundColor: "#f45023" },
+  chipText: { color: "#c2410c", fontSize: 13, fontWeight: "800" },
+  chipTextSelected: { color: "#FFFFFF" },
+  groupTitle: { color: "#5d3f3c", fontSize: 15, fontWeight: "900", marginTop: 6 },
   errorText: { color: "#b91c1c", backgroundColor: "#fee2e2", padding: 10 },
   emptyCard: {
     backgroundColor: "#FFFFFF",

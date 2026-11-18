@@ -13,6 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useProfiles } from "../context/ProfileContext";
 import LocalDatabaseService from "../services/LocalDatabaseService";
 import type { LocalGameSession } from "../types/localProfiles";
+import BlockBackground from "../components/BlockBackground";
 
 type HistoryMode = LocalGameSession["gameMode"];
 
@@ -83,6 +84,7 @@ export default function RiwayatPage() {
 
   return (
     <View style={styles.container}>
+      <BlockBackground />
       <SafeAreaView style={styles.safeArea}>
         <ScrollView contentContainerStyle={styles.content}>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>

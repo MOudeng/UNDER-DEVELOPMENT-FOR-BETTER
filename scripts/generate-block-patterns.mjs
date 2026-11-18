@@ -5,25 +5,15 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { PNG } from "pngjs";
 
+import { PATTERN_CELLS } from "../src/data/patternCells.ts";
+
 const OUT_DIR = resolve("src/assets/TEST_RANDOM_OTAK_ATIK");
 const SIZE = 3780; // same as the existing level images
 
-// Cells run TL, TR, BL, BR. R/W are solid blocks; tl/tr/bl/br are the half-red
-// diagonal block, named for the corner holding the red triangle's right angle.
-export const PATTERNS = {
-  "6e": ["tr", "bl", "tr", "br"],
-  "6f": ["bl", "br", "tl", "br"],
-  "6g": ["br", "tr", "tl", "br"],
-  "6h": ["bl", "br", "tl", "tl"],
-  "7e": ["bl", "bl", "tl", "tr"],
-  "7f": ["bl", "tl", "bl", "tl"],
-  "7g": ["tr", "bl", "br", "br"],
-  "7h": ["br", "tl", "tr", "tr"],
-  "8e": ["bl", "tr", "bl", "bl"],
-  "8f": ["br", "tr", "br", "tr"],
-  "8g": ["tl", "bl", "tl", "tr"],
-  "8h": ["tl", "bl", "tl", "tl"],
-};
+// Cells run TL, TR, BL, BR (see src/data/patternCells.ts); only e-h are new images.
+export const PATTERNS = Object.fromEntries(
+  Object.entries(PATTERN_CELLS).filter(([name]) => /^[678][e-h]$/.test(name)),
+);
 
 const isRed = (type, u, v) => {
   switch (type) {

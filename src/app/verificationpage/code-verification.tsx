@@ -15,6 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import PatternBackground from "../../components/PatternBackground";
 import { useUser } from "../../context/UserContext";
 import { IdentityService } from "../../services";
+import BlockBackground from "../../components/BlockBackground";
 
 const CODE_LENGTH = 6;
 
@@ -118,6 +119,7 @@ export default function CodeVerification() {
 
   return (
     <View style={styles.container}>
+      <BlockBackground />
       <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView behavior="padding" style={styles.keyboardView}>
           <ScrollView contentContainerStyle={styles.scrollContent}>

@@ -21,9 +21,7 @@ const SKIN = "#DDAA84";
 const SKIN_SHADE = "#C8926C";
 const DRESS = "#7A3B3B";
 const DRESS_SHADE = "#5F2C2D";
-const HIJAB = "#D9C1A8";
-const HIJAB_SHADE = "#BA9C81";
-const HIJAB_LIGHT = "#E9D8C5";
+const HAIR = "#2E2420";
 const FONT = "Segoe UI, Arial, sans-serif";
 
 const poly = (points, fill, extra = "") =>
@@ -122,11 +120,11 @@ const sleeve = (d, width) =>
 const parentBody = ({ happy }) => `
   <ellipse cx="350" cy="310" rx="150" ry="175" fill="#7A5A3E" opacity="0.06" filter="url(#soft)"/>
   <path d="M212 440 C214 352 250 312 300 298 L396 298 C446 312 478 352 484 440 Z" fill="${DRESS}"/>
-  <path d="M350 76 C414 76 442 128 438 190 C436 236 452 268 464 306 C442 358 398 392 346 396 C296 392 252 358 230 306 C244 268 260 236 258 190 C254 128 286 76 350 76 Z" fill="${HIJAB}"/>
-  <path d="M302 240 C316 288 372 302 416 250 C432 292 428 334 402 366 C360 396 300 388 256 342 C262 302 280 264 302 240 Z" fill="${HIJAB_LIGHT}" opacity="0.6"/>
-  <path d="M288 118 C320 90 384 90 418 130 M272 196 C270 240 256 272 246 298 M426 196 C428 240 442 272 452 298 M290 272 C306 322 374 344 426 302 M270 312 C300 356 372 376 418 342" fill="none" stroke="${HIJAB_SHADE}" stroke-width="4" stroke-linecap="round"/>
-  <path d="M316 248 C336 280 386 276 404 238 C400 288 330 300 316 248 Z" fill="${HIJAB_SHADE}" opacity="0.75"/>
+  <path d="M290 190 C284 120 320 92 354 92 C392 92 424 120 418 190 C424 236 428 272 420 304 C400 284 394 252 392 232 L316 232 C314 252 308 284 288 304 C280 272 286 236 290 190 Z" fill="${HAIR}"/>
+  <rect x="332" y="236" width="44" height="68" rx="16" fill="${SKIN_SHADE}"/>
+  <path d="M316 298 C330 318 376 318 390 298" fill="none" stroke="${DRESS_SHADE}" stroke-width="5" stroke-linecap="round"/>
   <path d="M296 176 C296 130 324 112 354 112 C392 112 412 138 410 180 C408 226 384 258 354 258 C322 258 296 224 296 176 Z" fill="${SKIN}" stroke="#C7A98C" stroke-width="3"/>
+  <path d="M296 170 C294 124 322 102 354 102 C392 102 416 126 410 170 C398 142 376 130 350 132 C326 134 308 148 296 170 Z" fill="${HAIR}"/>
   <path d="M336 160 q10 -5 20 -1 M380 158 q9 -4 17 1" fill="none" stroke="#5A4034" stroke-width="3.5" stroke-linecap="round"/>
   <path d="M337 174 q10 -7 20 0 M380 172 q9 -6 18 0" fill="none" stroke="#2B1F1B" stroke-width="2.5" stroke-linecap="round"/>
   <ellipse cx="348" cy="178" rx="4.5" ry="5.5" fill="#2B1F1B"/><circle cx="350" cy="176" r="1.4" fill="#FFFFFF"/>

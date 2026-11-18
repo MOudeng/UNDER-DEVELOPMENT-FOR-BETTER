@@ -11,10 +11,12 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import PatternBackground from "../../components/PatternBackground";
+import BlockBackground from "../../components/BlockBackground";
 
 export default function HelpAccess() {
   return (
     <LinearGradient colors={["#dc2626", "#f55023"]} style={styles.container}>
+      <BlockBackground color="#FFFFFF" opacity={0.14} />
       <SafeAreaView style={styles.safeArea}>
         <ScrollView contentContainerStyle={styles.scrollContent}>
           {/* Pattern Background - Top Left & Bottom Right */}

@@ -7,6 +7,7 @@ import {
 } from "lucide-react-native";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import BlockBackground from "../components/BlockBackground";
 
 export default function MulaiMainPage() {
   const handleModePress = () => {
@@ -18,6 +19,7 @@ export default function MulaiMainPage() {
 
   return (
     <View style={styles.container}>
+      <BlockBackground />
       <SafeAreaView style={styles.safeArea}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}

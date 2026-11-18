@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useProfiles } from "../../context/ProfileContext";
+import BlockBackground from "../../components/BlockBackground";
 
 export default function AkunPage() {
   const { activeProfile, enterGuestMode, error, isGuest } = useProfiles();
@@ -69,6 +70,7 @@ export default function AkunPage() {
 
   return (
     <View style={styles.container}>
+      <BlockBackground />
       <SafeAreaView style={styles.safeArea}>
         <ScrollView contentContainerStyle={styles.content}>
           <Text style={styles.title}>Akun</Text>

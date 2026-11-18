@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useUser } from "../context/UserContext";
+import BlockBackground from "../components/BlockBackground";
 
 const createFormData = (user: ReturnType<typeof useUser>["user"]) => ({
   email: user.email || "",
@@ -153,6 +154,7 @@ export default function TentangSayaPage() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#f5f5f5" }}>
+      <BlockBackground />
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}

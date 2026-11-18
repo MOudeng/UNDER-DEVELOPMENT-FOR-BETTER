@@ -12,6 +12,7 @@ import {
   Gradient,
   Shadow,
 } from "../../styles/globalstyle";
+import BlockBackground from "../../components/BlockBackground";
 
 const TermsAndAgreements = () => {
   const router = useRouter();
@@ -30,6 +31,7 @@ const TermsAndAgreements = () => {
   };
   return (
     <View style={styles.container}>
+      <BlockBackground />
       <SafeAreaView style={styles.safeArea}>
         <ScrollView
           style={styles.termsAndAgreements}

@@ -29,6 +29,7 @@ import {
   type AvatarId,
   type PlayerProfile,
 } from "../types/localProfiles";
+import BlockBackground from "../components/BlockBackground";
 
 export default function ProfilesPage() {
   const {
@@ -193,6 +194,7 @@ export default function ProfilesPage() {
 
   return (
     <View style={styles.container}>
+      <BlockBackground />
       <SafeAreaView style={styles.safeArea}>
         <ScrollView contentContainerStyle={styles.content}>
           {router.canGoBack() ? (

@@ -13,6 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useProfiles } from "../context/ProfileContext";
 import { useCompletionSound } from "../hooks/useCompletionSound";
 import LocalDatabaseService from "../services/LocalDatabaseService";
+import BlockBackground from "../components/BlockBackground";
 
 // Total waktu (detik) tiap sesi tamu sejak beranda; tidak pernah disimpan.
 const guestSessionTotals: number[] = [];
@@ -104,6 +105,7 @@ export default function DataAnalisaPage() {
 
   return (
     <View style={styles.container}>
+      <BlockBackground />
       <SafeAreaView style={styles.safeArea}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}

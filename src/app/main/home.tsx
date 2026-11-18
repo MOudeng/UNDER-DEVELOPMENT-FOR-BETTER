@@ -1,5 +1,6 @@
 import { router, useFocusEffect } from "expo-router";
-import { Clock, History, TrendingUp } from "lucide-react-native";
+import { Image } from "expo-image";
+import { Clock, History, TrendingUp, User } from "lucide-react-native";
 import { useCallback, useState } from "react";
 import {
   Alert,
@@ -11,8 +12,15 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import BlockBackground, {
+  BACKGROUND_LAYOUTS,
+  type BackgroundLayout,
+} from "../../components/BlockBackground";
+import ProfileAvatar from "../../components/ProfileAvatar";
 import StatCard from "../../components/StatCard";
 import { useProfiles } from "../../context/ProfileContext";
+import { STEP_ASSETS } from "../../data/levels";
+import { PATTERN_CELLS } from "../../data/patternCells";
 import LocalDatabaseService from "../../services/LocalDatabaseService";
 
 const formatDuration = (milliseconds: number) => {
@@ -25,11 +33,22 @@ const formatDuration = (milliseconds: number) => {
   return `${minutes}:${seconds}`;
 };
 
+// Levels 5-8 only, so the picture is never a plain solid block. A key like "6f" is
+// level 6, variant f: it picks both the image and its cells for the background.
+const PATTERN_KEYS = Object.keys(PATTERN_CELLS);
+const randomKey = () => PATTERN_KEYS[Math.floor(Math.random() * PATTERN_KEYS.length)];
+const randomLayout = () =>
+  BACKGROUND_LAYOUTS[Math.floor(Math.random() * BACKGROUND_LAYOUTS.length)];
+const imageFor = (key: string) => STEP_ASSETS[Number(key[0]) - 1][ "abcdefgh".indexOf(key[1]) ];
+
 export default function Home() {
-  const { activeProfile, isGuest } = useProfiles();
+  const { activeProfile, isGuest, isLoading } = useProfiles();
   const { width } = useWindowDimensions();
   const [fastestTime, setFastestTime] = useState<number | null>(null);
   const [averageTime, setAverageTime] = useState<number | null>(null);
+  const [heroKey, setHeroKey] = useState(randomKey);
+  const [layout, setLayout] = useState<BackgroundLayout>(randomLayout);
+  const heroSize = Math.min(width * 0.5, 220);
 
   const userName = isGuest ? "Tamu" : activeProfile?.displayName || "Pemain";
 
@@ -52,9 +71,19 @@ export default function Home() {
     );
   };
 
+  // Home needs a player: the Beranda tab must not open it before Tamu or Akun is chosen.
+  useFocusEffect(
+    useCallback(() => {
+      if (!isLoading && !activeProfile && !isGuest) router.navigate("/main/akun");
+    }, [activeProfile, isGuest, isLoading]),
+  );
+
   useFocusEffect(
     useCallback(() => {
       let isActive = true;
+      // A new picture and background arrangement each time home opens.
+      setHeroKey(randomKey());
+      setLayout(randomLayout());
 
       const loadStats = async () => {
         if (!activeProfile) {
@@ -86,9 +115,21 @@ export default function Home() {
 
   return (
     <View style={styles.container}>
+      <BlockBackground cells={PATTERN_CELLS[heroKey]} layout={layout} />
       <SafeAreaView style={styles.safeArea}>
         {/* Header */}
         <View style={styles.header}>
+          {activeProfile && !isGuest ? (
+            <ProfileAvatar
+              avatarId={activeProfile.avatarId}
+              avatarUri={activeProfile.avatarUri}
+              size={48}
+            />
+          ) : (
+            <View style={styles.guestAvatar}>
+              <User color="#f45023" size={26} />
+            </View>
+          )}
           <Text style={styles.headerTitle}>Hallo, {userName}</Text>
           {isGuest ? (
             <Text style={styles.guestNote}>Mode Tamu: hasil tidak disimpan</Text>
@@ -99,6 +140,17 @@ export default function Home() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
+          {/* A solved 2x2 pattern; the cross makes it read as four blocks. */}
+          <View
+            accessible
+            accessibilityLabel="Contoh pola blok 2 kali 2 yang sudah tersusun"
+            style={[styles.hero, { width: heroSize, height: heroSize }]}
+          >
+            <Image style={styles.heroImage} contentFit="cover" source={imageFor(heroKey)} />
+            <View style={styles.heroLineHorizontal} />
+            <View style={styles.heroLineVertical} />
+          </View>
+
           {/* Time Indicators Row */}
           <View
             style={[
@@ -136,13 +188,6 @@ export default function Home() {
             />
           </View>
 
-          <TouchableOpacity
-            style={styles.startButton}
-            onPress={handleStartGame}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.startButtonText}>Mulai Main</Text>
-          </TouchableOpacity>
 
           <View style={styles.secondaryActions}>
             <TouchableOpacity
@@ -169,6 +214,14 @@ export default function Home() {
             </TouchableOpacity>
           </View>
 
+          <TouchableOpacity
+            style={styles.startButton}
+            onPress={handleStartGame}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.startButtonText}>Mulai Main</Text>
+          </TouchableOpacity>
+
         </ScrollView>
       </SafeAreaView>
     </View>
@@ -179,6 +232,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F5F5F5",
+    overflow: "hidden",
   },
   safeArea: {
     flex: 1,
@@ -202,6 +256,47 @@ const styles = StyleSheet.create({
     color: "#5d3f3c",
     fontSize: 13,
     fontWeight: "700",
+  },
+  guestAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#fff1ed",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  hero: {
+    alignSelf: "center",
+    marginBottom: 20,
+    borderRadius: 18,
+    borderWidth: 3,
+    borderColor: "#FFFFFF",
+    backgroundColor: "#FFFFFF",
+    overflow: "hidden",
+    elevation: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.14,
+    shadowRadius: 12,
+  },
+  heroImage: { width: "100%", height: "100%" },
+  heroLineHorizontal: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: "50%",
+    height: 3,
+    marginTop: -1.5,
+    backgroundColor: "rgba(93,63,60,0.28)",
+  },
+  heroLineVertical: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: "50%",
+    width: 3,
+    marginLeft: -1.5,
+    backgroundColor: "rgba(93,63,60,0.28)",
   },
   scrollContent: {
     flexGrow: 1,
@@ -291,6 +386,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   secondaryActions: {
+    marginBottom: 20,
     flexDirection: "row",
     gap: 10,
   },
